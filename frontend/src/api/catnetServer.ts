@@ -6,16 +6,26 @@
  * isolated in this file so pages never need to know the difference between
  * this and api/mock.ts.
  *
- * The backend has no GET-by-id endpoint and doesn't persist results, so
- * completed (and in-progress) analyses are cached in memory here for
- * getAnalysis() to read. Stages progress asynchronously the same way
- * api/mock.ts fakes them, except every stage here reflects real work:
- * CATNET is the actual /predict call, NARRATIVE is a real Gemini call
- * through the local narrative-service (skipped silently if unavailable).
+ * Since Phase 2 the analysis is persisted in Supabase: the row is created
+ * first so its SERVER-generated id is the one the UI routes to, files go to
+ * private Storage, and the row is updated as the pipeline progresses. The
+ * in-memory cache is kept purely so the live run can show stage-by-stage
+ * progress without polling the database every 800ms; Supabase is the source
+ * of truth once the run is over (or after a reload).
+ *
+ * The CAT-Net and Gemini calls themselves are unchanged.
  */
-import { API_BASE_URL, ApiError, fetchBackendResourceAsObjectUrl } from "./client";
+import { API_BASE_URL, ApiError, fetchBackendResourceAsBlob } from "./client";
 import { requestNarrative } from "./narrative";
-import { saveHistoryEntry } from "./history";
+import {
+  createAnalysisRecord,
+  getAnalysisFromSupabase,
+  markAnalysisFailed,
+  updateAnalysisRecord,
+  uploadDerived,
+  uploadOriginal,
+} from "./supabaseHistory";
+import { generateThumbnail } from "../lib/thumbnail";
 import type { Analysis } from "../types/analysis";
 
 interface PredictResponse {
@@ -32,11 +42,14 @@ function update(id: string, patch: Partial<Analysis>) {
   resultsCache.set(id, { ...current, ...patch });
 }
 
-async function runPipeline(id: string, file: File, originalImageUrl: string) {
-  update(id, { status: "PROCESSING", stage: "CATNET" });
-
-  let predictData: PredictResponse;
+async function runPipeline(id: string, userId: string, file: File, originalImageUrl: string) {
   try {
+    // --- Original upload: byte-for-byte, no recompression (forensic source).
+    const originalPath = await uploadOriginal(userId, id, file);
+    await updateAnalysisRecord(id, { original_path: originalPath });
+
+    // --- CAT-Net inference (unchanged).
+    update(id, { status: "PROCESSING", stage: "CATNET" });
     const formData = new FormData();
     formData.append("file", file);
     const response = await fetch(`${API_BASE_URL}/predict`, {
@@ -45,56 +58,66 @@ async function runPipeline(id: string, file: File, originalImageUrl: string) {
       headers: { "ngrok-skip-browser-warning": "true" },
     });
     if (!response.ok) throw new Error(`CAT-Net server returned ${response.status}`);
-    predictData = await response.json();
+    const predictData: PredictResponse = await response.json();
+
+    if (!predictData.results?.length) {
+      throw new Error("CAT-Net returned no result for this image.");
+    }
+
+    // --- Heatmap: fetch once, use for both display and storage.
+    const heatmapBlob = await fetchBackendResourceAsBlob(predictData.results[0].url);
+    const heatmapUrl = URL.createObjectURL(heatmapBlob);
+    const heatmapPath = await uploadDerived(userId, id, "heatmap.png", heatmapBlob, "image/png");
+
+    const pages = [
+      { pageNumber: 1, originalImageUrl, catnet: { heatmapUrl } },
+    ];
+    update(id, { pages, pageCount: 1 });
+
+    // --- Thumbnail: derived, display-only, never replaces the original.
+    let thumbnailPath: string | undefined;
+    const thumbBlob = await generateThumbnail(file);
+    if (thumbBlob) {
+      thumbnailPath = await uploadDerived(userId, id, "thumbnail.webp", thumbBlob, "image/webp");
+    }
+
+    await updateAnalysisRecord(id, {
+      heatmap_path: heatmapPath,
+      ...(thumbnailPath ? { thumbnail_path: thumbnailPath } : {}),
+    });
+
+    // --- Gemini narrative (unchanged, still degrades gracefully).
+    update(id, { stage: "NARRATIVE" });
+    const narrativeResult = await requestNarrative(file, heatmapUrl);
+
+    const finalAnalysis: Analysis = {
+      ...(resultsCache.get(id) as Analysis),
+      status: "COMPLETED",
+      stage: "REPORT",
+      narrative: narrativeResult.status === "ok" ? { summary: narrativeResult.summary } : undefined,
+      narrativeError: narrativeResult.status === "error" ? narrativeResult.reason : undefined,
+    };
+    resultsCache.set(id, finalAnalysis);
+
+    await updateAnalysisRecord(id, {
+      status: "COMPLETED",
+      narrative: narrativeResult.status === "ok" ? { summary: narrativeResult.summary } : null,
+    });
   } catch (err) {
+    // A FAILED analysis is persisted, but is never presented as a result.
+    await markAnalysisFailed(id, err);
     update(id, {
       status: "FAILED",
-      error: err instanceof Error ? err.message : "CAT-Net inference failed.",
+      error: err instanceof Error ? err.message : "Analysis failed.",
     });
-    return;
   }
-
-  // Resolve each heatmap to a local blob: URL rather than pointing <img> tags
-  // straight at the backend — needed for ngrok's free-tier warning page (see
-  // client.ts), and it also means downstream consumers (history, narrative)
-  // never need to know or care how the backend is hosted.
-  let pages;
-  try {
-    pages = await Promise.all(
-      predictData.results.map(async (result, index) => ({
-        pageNumber: index + 1,
-        originalImageUrl,
-        catnet: { heatmapUrl: await fetchBackendResourceAsObjectUrl(result.url) },
-      })),
-    );
-  } catch (err) {
-    update(id, {
-      status: "FAILED",
-      error: err instanceof Error ? err.message : "Failed to retrieve the heatmap result.",
-    });
-    return;
-  }
-  update(id, { pages, pageCount: pages.length });
-
-  update(id, { stage: "NARRATIVE" });
-  const firstHeatmapUrl = pages[0]?.catnet.heatmapUrl;
-  const narrativeResult = firstHeatmapUrl
-    ? await requestNarrative(file, firstHeatmapUrl)
-    : ({ status: "skipped" } as const);
-
-  const finalAnalysis: Analysis = {
-    ...(resultsCache.get(id) as Analysis),
-    status: "COMPLETED",
-    stage: "REPORT",
-    narrative: narrativeResult.status === "ok" ? { summary: narrativeResult.summary } : undefined,
-    narrativeError: narrativeResult.status === "error" ? narrativeResult.reason : undefined,
-  };
-  resultsCache.set(id, finalAnalysis);
-  void saveHistoryEntry(finalAnalysis);
 }
 
 export async function catnetServerCreateAnalysis(file: File): Promise<Analysis> {
-  const id = crypto.randomUUID();
+  // The row is created before anything else so the database's own UUID is the
+  // identity the UI routes to — a client-chosen id must never become the
+  // primary key, or one user could address another user's row.
+  const { id, userId, createdAt } = await createAnalysisRecord(file);
   const originalImageUrl = URL.createObjectURL(file);
 
   const analysis: Analysis = {
@@ -104,20 +127,22 @@ export async function catnetServerCreateAnalysis(file: File): Promise<Analysis> 
     pageCount: 1,
     status: "QUEUED",
     stage: "UPLOAD",
-    createdAt: new Date().toISOString(),
+    createdAt,
     pages: [{ pageNumber: 1, originalImageUrl, catnet: { heatmapUrl: "" } }],
   };
   resultsCache.set(id, analysis);
 
-  void runPipeline(id, file, originalImageUrl);
+  void runPipeline(id, userId, file, originalImageUrl);
 
   return analysis;
 }
 
 export async function catnetServerGetAnalysis(id: string): Promise<Analysis> {
   const cached = resultsCache.get(id);
-  if (!cached) {
-    throw new ApiError("Analysis not found in the live session cache.");
-  }
-  return cached;
+  if (cached) return cached;
+
+  const stored = await getAnalysisFromSupabase(id);
+  if (stored) return stored;
+
+  throw new ApiError("Analysis not found.");
 }

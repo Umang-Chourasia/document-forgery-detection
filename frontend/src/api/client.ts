@@ -61,13 +61,18 @@ export async function apiFetch<T>(
 }
 
 /** Fetches a binary resource (e.g. a heatmap image) from the backend, with
- * the same ngrok-bypass header, and returns it as a local blob: URL so
- * <img> tags and downstream fetches never touch the remote URL directly. */
-export async function fetchBackendResourceAsObjectUrl(path: string): Promise<string> {
+ * the same ngrok-bypass header. */
+export async function fetchBackendResourceAsBlob(path: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}${path}`, { headers: BACKEND_HEADERS });
   if (!response.ok) {
     throw new ApiError(`Failed to fetch ${path} (${response.status})`, response.status);
   }
-  const blob = await response.blob();
+  return response.blob();
+}
+
+/** As above, but returns a local blob: URL so <img> tags and downstream
+ * fetches never touch the remote URL directly. */
+export async function fetchBackendResourceAsObjectUrl(path: string): Promise<string> {
+  const blob = await fetchBackendResourceAsBlob(path);
   return URL.createObjectURL(blob);
 }
