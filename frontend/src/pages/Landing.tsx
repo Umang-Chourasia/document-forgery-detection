@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const CAPABILITIES = [
   {
@@ -16,6 +17,8 @@ const CAPABILITIES = [
 ];
 
 export function Landing() {
+  const { session } = useAuth();
+
   return (
     <div className="mx-auto max-w-6xl px-6">
       <section className="flex min-h-[calc(100svh-73px)] flex-col justify-center py-24">
@@ -35,11 +38,16 @@ export function Landing() {
 
         <div className="mt-10 flex items-center gap-4">
           <Link
-            to="/analyze"
+            to={session ? "/analyze" : "/signup"}
             className="rounded-sm border border-accent/40 bg-accent-soft px-6 py-3 font-mono text-sm font-medium text-accent transition-colors hover:bg-accent/20"
           >
-            Analyze Document →
+            {session ? "Analyze Document →" : "Get Started →"}
           </Link>
+          {!session && (
+            <Link to="/login" className="font-mono text-sm text-ink-muted hover:text-ink">
+              Sign in
+            </Link>
+          )}
         </div>
       </section>
 
