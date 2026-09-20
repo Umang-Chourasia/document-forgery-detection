@@ -47,6 +47,16 @@ create index if not exists analyses_expires_idx
 -- --------------------------------------------------------------------------
 grant select, insert, update, delete on public.analyses to authenticated;
 
+-- The scheduled retention cleanup (supabase/functions/cleanup-expired) runs as
+-- service_role, which needs its own grant. service_role bypasses RLS, but
+-- bypassing RLS is not the same as holding table privileges — without this it
+-- fails with 42501 "permission denied for table analyses" exactly as an
+-- unprivileged role would.
+--
+-- Only select and delete: that is the whole of what the cleanup does, so the
+-- privilege matches the need rather than being blanket access.
+grant select, delete on public.analyses to service_role;
+
 -- --------------------------------------------------------------------------
 -- Row Level Security — ownership is the only rule.
 -- --------------------------------------------------------------------------
