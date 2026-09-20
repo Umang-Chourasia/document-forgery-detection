@@ -13,7 +13,14 @@
  *   policies key off.
  */
 import { supabase } from "./supabase";
-import type { Analysis, AnalysisStatus } from "../types/analysis";
+import type {
+  Analysis,
+  AnalysisStatus,
+  EvidenceMetrics,
+  NarrativeEvidence,
+  RiskLevel,
+  TamperingRisk,
+} from "../types/analysis";
 
 const BUCKET = "documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
@@ -30,6 +37,10 @@ export interface AnalysisRow {
   original_path: string | null;
   heatmap_path: string | null;
   thumbnail_path: string | null;
+  evidence_metrics: EvidenceMetrics | null;
+  risk_level: RiskLevel | null;
+  /** Stored as { risk, narrative } so the rule rationale survives a reload. */
+  narrative: { risk?: TamperingRisk; narrative?: NarrativeEvidence } | null;
 }
 
 /** Strips anything that could leak backend internals before it reaches the
@@ -115,6 +126,8 @@ export async function updateAnalysisRecord(
     original_path: string;
     heatmap_path: string;
     thumbnail_path: string;
+    evidence_metrics: unknown;
+    risk_level: string | null;
     narrative: unknown;
   }>,
 ): Promise<void> {
@@ -154,6 +167,9 @@ function rowToAnalysis(row: AnalysisRow, originalUrl: string, heatmapUrl: string
     stage: row.status === "COMPLETED" ? "REPORT" : undefined,
     createdAt: row.created_at,
     error: row.error ?? undefined,
+    metrics: row.evidence_metrics ?? undefined,
+    risk: row.narrative?.risk ?? undefined,
+    narrative: row.narrative?.narrative ?? undefined,
     pages: [
       {
         pageNumber: 1,
@@ -188,6 +204,7 @@ export interface SupabaseHistorySummary {
   createdAt: string;
   status: AnalysisStatus;
   error?: string;
+  riskLevel?: RiskLevel;
   thumbnailUrl: string;
 }
 
@@ -208,6 +225,7 @@ export async function listAnalysesFromSupabase(): Promise<SupabaseHistorySummary
       createdAt: row.created_at,
       status: row.status,
       error: row.error ?? undefined,
+      riskLevel: row.risk_level ?? undefined,
       thumbnailUrl: await signedUrl(row.thumbnail_path ?? row.original_path),
     })),
   );

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { getAnalysis } from "../api/analysis";
 import { HeatmapViewer } from "../components/evidence/HeatmapViewer";
 import { ProcessingTimeline } from "../components/evidence/ProcessingTimeline";
+import { RiskBadge } from "../components/evidence/RiskBadge";
 import type { Analysis } from "../types/analysis";
 
 const POLL_INTERVAL_MS = 800;
@@ -97,51 +98,143 @@ export function AnalysisResult() {
       )}
 
       {analysis.status === "COMPLETED" && page && (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_320px]">
           <HeatmapViewer page={page} />
 
           <aside className="flex flex-col gap-6">
-            <div className="rounded-sm border border-border bg-surface p-5">
-              <h2 className="mb-2 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                CAT-Net Evidence
-              </h2>
-              <p className="text-sm text-ink">
-                {page.catnet.hasEvidence === undefined
-                  ? "Localization complete — review the heatmap for any highlighted regions."
-                  : page.catnet.hasEvidence
-                    ? "Localized evidence detected on this page."
-                    : "No localized evidence detected on this page."}
-              </p>
-            </div>
+            {/* ---- Tampering Risk: deterministic, rule-based ---- */}
+            {analysis.risk && (
+              <div className="rounded-sm border border-border bg-surface p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+                    Tampering Risk
+                  </h2>
+                  <RiskBadge level={analysis.risk.level} />
+                </div>
+                <p className="text-sm leading-relaxed text-ink-muted">
+                  {analysis.risk.rationale}
+                </p>
+                <p className="mt-2 font-mono text-[11px] leading-relaxed text-ink-faint">
+                  Determined by a fixed rule over the measurements below — not by the
+                  language model, and not a CAT-Net confidence value.
+                </p>
+              </div>
+            )}
+
+            {/* ---- Measured evidence: deterministic ---- */}
+            {analysis.metrics && (
+              <div className="rounded-sm border border-border bg-surface p-5">
+                <h2 className="mb-1 font-mono text-xs uppercase tracking-wide text-ink-faint">
+                  Measured Evidence
+                </h2>
+                <p className="mb-3 text-[11px] leading-relaxed text-ink-faint">
+                  Derived from the rendered heatmap. Measurements, not model output.
+                </p>
+                <dl className="flex flex-col gap-2 font-mono text-xs">
+                  <Metric
+                    label="Flagged area"
+                    value={`${(analysis.metrics.evidenceAreaFraction * 100).toFixed(2)}%`}
+                  />
+                  <Metric
+                    label="Peak intensity"
+                    value={analysis.metrics.maxIntensity.toFixed(2)}
+                  />
+                  <Metric
+                    label="Mean (flagged)"
+                    value={analysis.metrics.meanEvidenceIntensity.toFixed(2)}
+                  />
+                  <Metric label="Regions" value={String(analysis.metrics.regionCount)} />
+                  <Metric
+                    label="Largest region"
+                    value={`${(analysis.metrics.largestRegionFraction * 100).toFixed(2)}% of image`}
+                  />
+                  <Metric
+                    label="Concentration"
+                    value={`${(analysis.metrics.largestRegionShare * 100).toFixed(0)}% in largest`}
+                  />
+                </dl>
+              </div>
+            )}
 
             {analysis.narrativeError && (
               <div className="rounded-sm border border-caution/30 bg-surface p-5">
                 <h2 className="mb-2 font-mono text-xs uppercase tracking-wide text-caution">
-                  Narrative Unavailable
+                  Interpretation Unavailable
                 </h2>
                 <p className="text-sm leading-relaxed text-ink-muted">
                   {analysis.narrativeError}
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                  The CAT-Net localization above is unaffected — only the written
-                  interpretation is missing.
+                  The heatmap, measurements and risk level above are unaffected — only the
+                  written interpretation is missing.
                 </p>
               </div>
             )}
 
+            {/* ---- LLM interpretation: clearly separated from the above ---- */}
             {analysis.narrative && (
               <div className="rounded-sm border border-border bg-surface p-5">
-                <h2 className="mb-2 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Narrative Interpretation
+                <h2 className="mb-1 font-mono text-xs uppercase tracking-wide text-ink-faint">
+                  AI Interpretation
                 </h2>
-                <p className="text-sm leading-relaxed text-ink-muted">
-                  {analysis.narrative.summary}
+                <p className="mb-3 text-[11px] leading-relaxed text-ink-faint">
+                  Generated from the evidence above. Interpretation, not measurement.
                 </p>
+
+                {analysis.narrative.summary && (
+                  <p className="text-sm leading-relaxed text-ink-muted">
+                    {analysis.narrative.summary}
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-3">
+                  <NarrativeField label="What the heatmap shows" value={analysis.narrative.observed_evidence} />
+                  <NarrativeField label="Where" value={analysis.narrative.location_description} />
+                  <NarrativeField label="What it means" value={analysis.narrative.plain_language_meaning} />
+                  {analysis.narrative.possible_pattern && (
+                    <div>
+                      <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+                        Possible pattern
+                        {analysis.narrative.pattern_confidence
+                          ? ` · ${analysis.narrative.pattern_confidence} confidence`
+                          : ""}
+                      </p>
+                      <p className="text-sm leading-relaxed text-ink">
+                        {analysis.narrative.possible_pattern}
+                      </p>
+                      {analysis.narrative.pattern_reasoning && (
+                        <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                          {analysis.narrative.pattern_reasoning}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <NarrativeField label="Caveats" value={analysis.narrative.caveats} />
+                </div>
               </div>
             )}
           </aside>
         </div>
       )}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-ink-faint">{label}</dt>
+      <dd className="text-ink tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function NarrativeField({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className="text-sm leading-relaxed text-ink-muted">{value}</p>
     </div>
   );
 }

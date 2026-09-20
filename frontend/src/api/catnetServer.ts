@@ -86,22 +86,36 @@ async function runPipeline(id: string, userId: string, file: File, originalImage
       ...(thumbnailPath ? { thumbnail_path: thumbnailPath } : {}),
     });
 
-    // --- Gemini narrative (unchanged, still degrades gracefully).
+    // --- Forensic metrics, tampering risk, and narrative.
+    // The metrics and risk are deterministic and computed server-side without
+    // the language model; the narrative is the model's reading of them. A
+    // narrative failure still leaves the measured evidence intact.
     update(id, { stage: "NARRATIVE" });
     const narrativeResult = await requestNarrative(file, heatmapUrl);
+
+    const measured = narrativeResult.status === "ok" ? narrativeResult : null;
 
     const finalAnalysis: Analysis = {
       ...(resultsCache.get(id) as Analysis),
       status: "COMPLETED",
       stage: "REPORT",
-      narrative: narrativeResult.status === "ok" ? { summary: narrativeResult.summary } : undefined,
-      narrativeError: narrativeResult.status === "error" ? narrativeResult.reason : undefined,
+      metrics: measured?.metrics,
+      risk: measured?.risk,
+      narrative: measured?.narrative,
+      narrativeError:
+        narrativeResult.status === "error"
+          ? narrativeResult.reason
+          : measured?.narrativeError,
     };
     resultsCache.set(id, finalAnalysis);
 
     await updateAnalysisRecord(id, {
       status: "COMPLETED",
-      narrative: narrativeResult.status === "ok" ? { summary: narrativeResult.summary } : null,
+      evidence_metrics: measured?.metrics ?? null,
+      risk_level: measured?.risk?.level ?? null,
+      narrative: measured
+        ? { risk: measured.risk, narrative: measured.narrative ?? null }
+        : null,
     });
   } catch (err) {
     // A FAILED analysis is persisted, but is never presented as a result.

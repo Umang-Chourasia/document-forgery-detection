@@ -5,6 +5,7 @@ import {
   listAnalysesFromSupabase,
   type SupabaseHistorySummary,
 } from "../api/supabaseHistory";
+import { RiskBadge } from "../components/evidence/RiskBadge";
 import type { AnalysisStatus } from "../types/analysis";
 
 const STATUS_STYLES: Record<AnalysisStatus, string> = {
@@ -95,6 +96,15 @@ export function History() {
                   <p className="mt-0.5 truncate font-mono text-xs text-evidence">{entry.error}</p>
                 )}
               </div>
+
+              {entry.riskLevel && (
+                <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+                    Risk
+                  </span>
+                  <RiskBadge level={entry.riskLevel} size="sm" />
+                </span>
+              )}
 
               <span
                 className={`shrink-0 rounded-sm border px-2.5 py-1 font-mono text-[11px] uppercase tracking-wide ${STATUS_STYLES[entry.status]}`}
