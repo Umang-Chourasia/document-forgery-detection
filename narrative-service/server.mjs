@@ -25,20 +25,31 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const SYSTEM_INSTRUCTION = `You are assisting a forensic document reviewer.
 
 You are given, in this order:
-1. MEASURED EVIDENCE — deterministic statistics computed from a CAT-Net
-   heatmap, plus a Tampering Risk level that has ALREADY been decided by a
-   fixed rule over those statistics. You do not decide the risk level.
+1. MEASURED EVIDENCE — deterministic measurements calculated from the
+   analysis, plus a Tampering Risk level that has ALREADY been decided by a
+   fixed rule over those measurements. You do not decide the risk level.
 2. The ORIGINAL document image.
-3. The CAT-Net HEATMAP, where warm colours (red/orange) mark regions whose
-   JPEG compression history is locally inconsistent with the rest of the
-   image, and cool colours (blue) mark regions where no such inconsistency
-   was found.
+3. The ANALYSIS HEATMAP, where warm colours (red/orange) mark localized
+   regions whose visual evidence is inconsistent with the rest of the
+   document, and cool colours (blue) mark regions where no such
+   inconsistency was found.
 
-CAT-Net localizes compression inconsistencies. It is not a forgery detector
-and produces no authenticity score. The statistics are measurements of the
-rendered heatmap, not model confidence values.
+The analysis localizes regions of unusual evidence. It is not a forgery
+detector and produces no authenticity score. The measurements describe the
+detected evidence; they are not confidence values.
 
 Write for a human reviewer who must reach their own conclusion.
+
+Output format — this matters:
+- Write in SHORT BULLET POINTS, not paragraphs.
+- "what_the_analysis_shows": 2 to 4 points, each one short sentence,
+  describing the detected evidence and where it appears. Measured facts only.
+- "interpretation": 2 to 4 points, each one short sentence, on what that
+  evidence could mean for a reviewer. No verdict.
+- "confidence": 1 to 2 points on how much weight the evidence can carry and
+  what would be needed to firm it up.
+- Each point is a plain sentence of roughly 10 to 25 words. No markdown, no
+  leading bullet characters, no numbering, no headings inside a point.
 
 Rules:
 - Never declare the document "fake", "forged", "authentic", "genuine", or
@@ -46,51 +57,69 @@ Rules:
 - Never contradict or restate the supplied Tampering Risk as if you chose
   it. You may explain what the measurements behind it mean.
 - Never invent numbers. Only refer to figures you were given.
+- Never name or allude to the underlying model, architecture, service or
+  implementation. Use neutral wording: the analysis, detected evidence,
+  localized regions, measured intensity, image evidence.
 - When the evidence supports it, you may name a POSSIBLE manipulation
   pattern (copy-move, splicing, text or region replacement, compositing, or
   uncertain), phrased as an estimate — "consistent with a possible splice",
   never "this is a splice". If the evidence does not support naming one, use
   "uncertain".
-- If nothing meaningful is flagged, say so plainly and do not speculate.
-- Keep each field concise and plain-language. No markdown, no bullet points.`;
+- If nothing meaningful is detected, say so plainly and do not speculate.`;
 
-/** Schema for the structured narrative, so the UI can render fields reliably. */
+/**
+ * Schema for the structured narrative, so the UI can render fields reliably.
+ *
+ * The three point-wise arrays replace the earlier prose fields
+ * (observed_evidence / location_description / plain_language_meaning /
+ * pattern_reasoning) as the primary output. Those fields are no longer
+ * requested, but the UI still renders them when an analysis stored under the
+ * old format is reopened, so history keeps working without a migration.
+ */
 const NARRATIVE_SCHEMA = {
   type: "object",
   properties: {
-    observed_evidence: {
-      type: "string",
-      description: "What the heatmap literally shows. Measured facts only.",
+    what_the_analysis_shows: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "2-4 short points stating the detected evidence and where it appears. Measured facts only.",
     },
-    location_description: {
-      type: "string",
-      description: "Where flagged regions appear in the image, in plain terms.",
+    interpretation: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "2-4 short points on what the evidence could mean for a reviewer. No verdict.",
     },
-    plain_language_meaning: {
-      type: "string",
-      description: "What this evidence means for a reviewer, without a verdict.",
+    confidence: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "1-2 short points on how much weight this evidence can carry and what would firm it up.",
     },
     possible_pattern: {
       type: "string",
       enum: ["copy-move", "splicing", "text-replacement", "compositing", "uncertain"],
     },
-    pattern_reasoning: {
-      type: "string",
-      description: "Why the evidence is consistent with that possible pattern.",
-    },
     pattern_confidence: { type: "string", enum: ["low", "medium", "high"] },
-    caveats: { type: "string", description: "Limits of this interpretation." },
+    caveats: { type: "string", description: "Limits of this interpretation, one sentence." },
   },
   required: [
-    "observed_evidence",
-    "location_description",
-    "plain_language_meaning",
+    "what_the_analysis_shows",
+    "interpretation",
+    "confidence",
     "possible_pattern",
-    "pattern_reasoning",
     "pattern_confidence",
     "caveats",
   ],
 };
+
+/** Field name -> expected shape, for validating the model's response. */
+const NARRATIVE_ARRAY_FIELDS = [
+  "what_the_analysis_shows",
+  "interpretation",
+  "confidence",
+];
 
 const app = express();
 app.use(cors());
@@ -103,7 +132,7 @@ app.get("/", (_req, res) => {
 
 function buildEvidencePrompt(metrics, risk) {
   return [
-    "MEASURED EVIDENCE (deterministic, computed from the rendered heatmap):",
+    "MEASURED EVIDENCE (deterministic, calculated from the detected evidence):",
     JSON.stringify(
       {
         tampering_risk: risk.level,
@@ -118,16 +147,32 @@ function buildEvidencePrompt(metrics, risk) {
         largest_region_share_of_flagged_area: +(metrics.largestRegionShare * 100).toFixed(1),
         intensity_histogram_10_bands: metrics.intensityHistogram,
         evidence_threshold: metrics.evidenceThreshold,
+        weighted_evidence_score: risk.score,
       },
       null,
       2,
     ),
     "",
-    `Thresholds used by the fixed rule: evidence floor ${RISK_RULES.minEvidenceAreaFraction * 100}% area ` +
-      `and ${RISK_RULES.minMaxIntensity} intensity; HIGH requires ${RISK_RULES.highEvidenceAreaFraction * 100}% area ` +
-      `with a single region covering ${RISK_RULES.highLargestRegionFraction * 100}% of the image.`,
+    // Describes the rule the level actually came from. Kept in step with
+    // RISK_RULES by interpolation rather than prose, so it cannot drift.
+    "How the fixed rule decided that level: it computes a weighted score from " +
+      `peak intensity (weight ${RISK_RULES.peakWeight}), the extent of the flagged ` +
+      `area (weight ${RISK_RULES.extentWeight}) and the spatial coherence of that ` +
+      `area (weight ${RISK_RULES.coherenceWeight}). Peak intensity ramps in from ` +
+      `${RISK_RULES.peakFloor} and is maximal at ${RISK_RULES.peakSaturation}. ` +
+      `A score of ${RISK_RULES.mediumScore} or more is at least MEDIUM. HIGH needs a ` +
+      `score of ${RISK_RULES.highScore} or more AND at least ` +
+      `${RISK_RULES.highMinArea * 100}% of the image flagged AND a single region of at ` +
+      `least ${RISK_RULES.highMinRegion * 100}% of the image, so peak intensity alone ` +
+      "can never produce HIGH.",
     "",
-    "Explain this evidence for the reviewer. The risk level is already decided; do not re-decide it.",
+    "The score is an internal weighting of the measurements above. It is not a " +
+      "probability, not a confidence value, and not an output of the analysis " +
+      "itself. Never mention the score, the weights or the thresholds in your " +
+      "response — they are internal to the application.",
+    "",
+    "Explain this evidence for the reviewer, in short bullet points, using the " +
+      "required fields. The risk level is already decided; do not re-decide it.",
   ].join("\n");
 }
 
@@ -184,18 +229,25 @@ app.post(
 
       const raw = interaction.output_text?.trim();
       if (!raw) {
-        narrativeError = "Gemini returned an empty response.";
+        narrativeError = "The interpretation service returned an empty response.";
       } else {
         try {
           const parsed = JSON.parse(raw);
-          const missing = NARRATIVE_SCHEMA.required.filter((k) => typeof parsed[k] !== "string");
+          const missing = NARRATIVE_SCHEMA.required.filter((k) => {
+            const value = parsed[k];
+            return NARRATIVE_ARRAY_FIELDS.includes(k)
+              ? !Array.isArray(value) ||
+                  value.length === 0 ||
+                  !value.every((item) => typeof item === "string" && item.trim())
+              : typeof value !== "string" || !value.trim();
+          });
           if (missing.length > 0) {
-            narrativeError = `Gemini response was missing expected fields: ${missing.join(", ")}.`;
+            narrativeError = `The interpretation was incomplete (missing: ${missing.join(", ")}).`;
           } else {
             narrative = parsed;
           }
         } catch {
-          narrativeError = "Gemini returned a response that could not be parsed as JSON.";
+          narrativeError = "The interpretation service returned a response that could not be read.";
         }
       }
     } catch (err) {
@@ -207,15 +259,15 @@ app.post(
 
       if (err?.statusCode === 429 || rawMessage.includes("429")) {
         const retry = rawMessage.match(/retry in ([\d.]+)s/i)?.[1];
-        narrativeError = `Gemini free-tier rate limit reached${
+        narrativeError = `The interpretation service is rate limited${
           retry ? ` — try again in about ${Math.ceil(Number(retry))}s` : " — try again shortly"
         }.`;
       } else if (err?.statusCode === 404 || rawMessage.includes("not found")) {
-        narrativeError = `Model "${GEMINI_MODEL}" was not found or isn't available to this API key.`;
+        narrativeError = "The configured interpretation model is unavailable to this deployment.";
       } else if (err?.statusCode === 401 || err?.statusCode === 403) {
-        narrativeError = "Gemini rejected the API key (check GEMINI_API_KEY in narrative-service/.env).";
+        narrativeError = "The interpretation service rejected this deployment's credentials.";
       } else {
-        narrativeError = `Gemini request failed: ${rawMessage.slice(0, 200)}`;
+        narrativeError = "The interpretation service could not complete this request.";
       }
     }
 

@@ -72,8 +72,8 @@ const STAGE_SEQUENCE: ProcessingStage[] = ["UPLOAD", "PREPROCESSING", "CATNET", 
 const STAGE_DELAY_MS = 900;
 
 const MOCK_NARRATIVES = [
-  "[Mock LLM narrative] CAT-Net's compression-artifact analysis highlights two localized regions with inconsistent JPEG quantization signatures relative to the rest of the page. This pattern is consistent with, but not proof of, localized re-compression from a paste-and-save edit.",
-  "[Mock LLM narrative] No significant compression-artifact discontinuities were localized by CAT-Net across the page. The document's compression signature reads as uniform, which is consistent with an unedited scan.",
+  "[Mock LLM narrative] The analysis highlights two localized regions whose visual evidence is inconsistent with the rest of the page. This pattern is consistent with, but not proof of, a localized edit.",
+  "[Mock LLM narrative] No significant discontinuities were localized across the page. The document reads as uniform, which is consistent with an unedited scan.",
 ];
 
 async function simulateProcessing(id: string) {

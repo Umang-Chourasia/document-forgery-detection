@@ -6,8 +6,11 @@ import type { EvidenceMetrics, TamperingRisk } from "../../types/analysis";
  *
  * Every value rendered here is read straight out of EvidenceMetrics. Nothing
  * is derived, combined, rescaled or re-thresholded — the only arithmetic is
- * fraction-to-percent for display, and the histogram bars are drawn relative
- * to the largest bin purely so short bars remain visible.
+ * fraction-to-percent for display.
+ *
+ * `intensityHistogram` is intentionally not rendered. It remains in the
+ * metrics payload because the deterministic risk rule reads it; it is simply
+ * not part of the reviewer-facing presentation.
  */
 interface MeasuredEvidenceProps {
   metrics: EvidenceMetrics;
@@ -63,7 +66,7 @@ export function MeasuredEvidence({ metrics, risk }: MeasuredEvidenceProps) {
       <CardHeader
         title="Measured Evidence"
         titleClass="text-accent"
-        caption="Derived from the rendered heatmap. Measurements, not model output."
+        caption="Calculated from the detected evidence. Measurements, not interpretation."
       />
 
       {/* Flagged area, drawn to scale against the whole image. */}
@@ -119,67 +122,11 @@ export function MeasuredEvidence({ metrics, risk }: MeasuredEvidenceProps) {
         </p>
       )}
 
-      <IntensityHistogram metrics={metrics} />
-
       <p className="mt-3 font-mono text-[10px] leading-relaxed text-ink-faint">
         Heatmap {metrics.heatmapWidth}×{metrics.heatmapHeight} ·{" "}
         {metrics.evidencePixelCount.toLocaleString()} px at or above{" "}
         {metrics.evidenceThreshold}
       </p>
     </Card>
-  );
-}
-
-/**
- * The 10-band intensity histogram that the metrics payload has always
- * carried but the UI never showed.
- *
- * Bar heights are log-scaled. Real CAT-Net output is strongly bimodal — the
- * lowest band routinely holds tens of thousands of times more pixels than
- * any other — so a linear axis renders every band except the first as a flat
- * line and hides exactly the evidence this panel exists to show. The axis is
- * labelled as log scale, and the tooltips report the raw counts unchanged.
- */
-function IntensityHistogram({ metrics }: { metrics: EvidenceMetrics }) {
-  const bins = metrics.intensityHistogram;
-  if (!bins?.length) return null;
-
-  const scale = (n: number) => Math.log10(n + 1);
-  const peak = scale(Math.max(...bins));
-  if (peak <= 0) return null;
-
-  // Which bands sit at or above the evidence threshold, for the marker line.
-  const thresholdBand = Math.round(metrics.evidenceThreshold * bins.length);
-
-  return (
-    <div className="mt-4 border-t border-border pt-3">
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-        Intensity distribution · {bins.length} bands · log scale
-      </p>
-      <div className="relative flex h-16 items-end gap-px">
-        {bins.map((count, i) => {
-          const atOrAboveThreshold = i >= thresholdBand;
-          return (
-            <div
-              key={i}
-              title={`${(i / bins.length).toFixed(1)}–${((i + 1) / bins.length).toFixed(1)}: ${count.toLocaleString()} px`}
-              style={{ height: `${Math.max(1, (scale(count) / peak) * 100)}%` }}
-              className={`flex-1 rounded-t-[1px] ${
-                atOrAboveThreshold ? "bg-accent/70" : "bg-border-strong"
-              }`}
-            />
-          );
-        })}
-      </div>
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-faint">
-        <span>0.0</span>
-        <span>1.0</span>
-      </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-ink-faint">
-        Pixel counts per intensity band, log-scaled so the smaller bands stay
-        visible. Highlighted bands are at or above the {metrics.evidenceThreshold}{" "}
-        threshold and make up the flagged area.
-      </p>
-    </div>
   );
 }

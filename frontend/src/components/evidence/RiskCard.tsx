@@ -22,19 +22,16 @@ export function RiskCard({ risk }: { risk: TamperingRisk }) {
             Deterministic
           </span>
         </div>
+        {/* `risk.rule` is the internal rule identifier. It stays in the payload
+            and in the persisted record, but is not shown to the reviewer. */}
         <RiskBadge level={risk.level} size="lg" />
-        {risk.rule && (
-          <p className="mt-3 font-mono text-[11px] text-ink-muted">
-            Rule: <span className="text-ink">{risk.rule}</span>
-          </p>
-        )}
       </div>
 
       <div className="px-5 py-4">
         <p className="text-sm leading-relaxed text-ink-muted">{risk.rationale}</p>
         <p className="mt-3 font-mono text-[11px] leading-relaxed text-ink-faint">
-          Determined by a fixed rule over the measurements below — not by the
-          language model, and not a CAT-Net confidence value.
+          Calculated by a fixed rule from the measured evidence below — not
+          chosen by the language model, and not a confidence value.
         </p>
       </div>
     </Card>

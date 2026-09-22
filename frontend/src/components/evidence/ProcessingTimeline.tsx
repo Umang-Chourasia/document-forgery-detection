@@ -12,17 +12,19 @@ const STAGES: { key: ProcessingStage; label: string; caption: string }[] = [
   {
     key: "PREPROCESSING",
     label: "Preprocessing",
-    caption: "Preparing the image for the model.",
+    caption: "Preparing the document for analysis.",
   },
   {
+    // The stage key is the internal pipeline identifier and is unchanged;
+    // only the label shown to the reviewer is product terminology.
     key: "CATNET",
-    label: "CAT-Net Localization",
-    caption: "Tracing compression artifacts across the page.",
+    label: "Document Localization",
+    caption: "Identifying regions that show unusual visual evidence.",
   },
   {
     key: "NARRATIVE",
-    label: "Narrative Interpretation",
-    caption: "Measuring the heatmap, then interpreting the evidence.",
+    label: "Interpretation",
+    caption: "Measuring the detected evidence, then interpreting it.",
   },
   { key: "REPORT", label: "Report", caption: "Assembling the result." },
 ];

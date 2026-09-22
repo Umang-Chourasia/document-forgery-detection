@@ -90,10 +90,10 @@ export async function apiFetch<T>(
   } catch (err) {
     if (err instanceof ApiError) throw err;
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ApiError("Request timed out — is the model server reachable?");
+      throw new ApiError("Request timed out — is the analysis service reachable?");
     }
     throw new ApiError(
-      "Could not reach the model server. Check that it's running and reachable.",
+      "Could not reach the analysis service. Check that it's running and reachable.",
     );
   } finally {
     clearTimeout(timeout);
@@ -114,7 +114,7 @@ export async function fetchBackendResourceAsBlob(path: string): Promise<Blob> {
   } catch (err) {
     if (isAbortError(err)) {
       throw new ApiError(
-        `The CAT-Net server did not return the result within ${CATNET_TIMEOUT_MS / 1000} seconds.`,
+        `The analysis service did not return the result within ${CATNET_TIMEOUT_MS / 1000} seconds.`,
       );
     }
     throw err;

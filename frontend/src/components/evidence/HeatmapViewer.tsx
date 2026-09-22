@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { HeatmapLegend } from "./HeatmapLegend";
 import type { AnalysisPage } from "../../types/analysis";
 
 type ViewMode = "original" | "heatmap" | "overlay" | "split";
 
 interface HeatmapViewerProps {
   page: AnalysisPage;
-  /** From EvidenceMetrics, when available — passed straight to the legend. */
-  evidenceThreshold?: number;
 }
 
 const ZOOM_STEPS = [1, 1.5, 2, 3, 4];
@@ -40,11 +37,11 @@ interface Size {
  *
  * Aspect ratio is preserved from each image's own intrinsic dimensions. The
  * heatmap is laid over the original inside the same box with `object-contain`,
- * so if CAT-Net ever returns a heatmap whose aspect ratio differs from the
+ * so if the analysis ever returns a heatmap whose aspect ratio differs from the
  * source it letterboxes (and we say so) rather than silently stretching the
  * evidence to fit.
  */
-export function HeatmapViewer({ page, evidenceThreshold }: HeatmapViewerProps) {
+export function HeatmapViewer({ page }: HeatmapViewerProps) {
   const [mode, setMode] = useState<ViewMode>("overlay");
   const [zoomIndex, setZoomIndex] = useState(0);
   const [opacity, setOpacity] = useState(0.65);
@@ -190,7 +187,7 @@ export function HeatmapViewer({ page, evidenceThreshold }: HeatmapViewerProps) {
   const heatmapImg = hasHeatmap ? (
     <img
       src={page.catnet.heatmapUrl}
-      alt={`Page ${page.pageNumber} CAT-Net heatmap`}
+      alt={`Page ${page.pageNumber} analysis heatmap`}
       draggable={false}
       onLoad={(e) =>
         setHeatmapSize({
@@ -346,7 +343,6 @@ export function HeatmapViewer({ page, evidenceThreshold }: HeatmapViewerProps) {
         </div>
       )}
 
-      {hasHeatmap && <HeatmapLegend evidenceThreshold={evidenceThreshold} />}
     </div>
   );
 }

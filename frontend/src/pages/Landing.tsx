@@ -1,11 +1,10 @@
-import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { ButtonLink } from "../components/ui/Button";
 
 const CAPABILITIES = [
   {
     label: "Pixel-level localization",
-    body: "CAT-Net v2 traces compression-artifact inconsistencies to surface exactly which regions of a page carry manipulation signatures — not a single page-wide guess.",
+    body: "The analysis surfaces exactly which regions of a page carry unusual visual evidence — not a single page-wide guess.",
   },
   {
     label: "Evidence, not a verdict",
@@ -13,7 +12,7 @@ const CAPABILITIES = [
   },
   {
     label: "Narrative interpretation",
-    body: "An LLM reads the localization output and writes a plain-language account of what the evidence shows, alongside the raw heatmap.",
+    body: "A language model reads the localization output and summarizes what the evidence shows, alongside the heatmap itself.",
   },
 ];
 
@@ -21,12 +20,12 @@ const PIPELINE = [
   {
     step: "01",
     label: "Localization",
-    body: "The document image is run through CAT-Net v2, which returns a heatmap of locally inconsistent compression history.",
+    body: "The document is analyzed to identify regions showing unusual visual evidence, returned as a heatmap.",
   },
   {
     step: "02",
     label: "Measurement",
-    body: "Deterministic statistics are computed from that heatmap, and a fixed rule assigns a tampering risk level.",
+    body: "Quantitative measurements are calculated from the detected evidence, and a fixed rule assigns a tampering risk level.",
   },
   {
     step: "03",
@@ -53,20 +52,15 @@ export function Landing() {
           Inspect the evidence.
         </h1>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-muted">
-          Pixel-level forgery localization built on CAT-Net v2's compression-artifact
-          tracing, run against your own images and presented as evidence for
-          review — not an unexplained score.
+          Pixel-level forgery localization, run against your own documents and
+          presented as evidence for review — not an unexplained score.
         </p>
 
+        {/* Sign in lives in the navbar only; the hero carries one primary action. */}
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <ButtonLink to={session ? "/analyze" : "/signup"} size="lg">
             {session ? "Analyze Document →" : "Get Started →"}
           </ButtonLink>
-          {!session && (
-            <Link to="/login" className="font-mono text-sm text-ink-muted hover:text-ink">
-              Sign in
-            </Link>
-          )}
         </div>
       </section>
 
@@ -102,7 +96,7 @@ export function Landing() {
       </section>
 
       <footer className="border-t border-border py-10 text-center font-mono text-xs text-ink-faint">
-        CAT-Net v2 · localization only, no invented classification
+        Localization only · no invented classification
       </footer>
     </div>
   );

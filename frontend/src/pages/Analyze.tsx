@@ -10,16 +10,16 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 /** What the pipeline will do, in the order the result page presents it. */
 const PIPELINE_STEPS = [
   {
-    label: "CAT-Net localization",
-    body: "Traces compression artifacts and returns a heatmap marking where the page is locally inconsistent.",
+    label: "AI Localization",
+    body: "The document is analyzed to identify regions showing unusual visual evidence.",
   },
   {
-    label: "Measured evidence",
-    body: "Deterministic statistics computed from that heatmap, plus a rule-based tampering risk level.",
+    label: "Measured Evidence",
+    body: "Quantitative measurements are calculated from the detected evidence.",
   },
   {
-    label: "AI interpretation",
-    body: "A written reading of the evidence for a human reviewer — never a verdict on the document.",
+    label: "AI Interpretation",
+    body: "A language model summarizes the measured evidence in concise, human-readable points.",
   },
 ];
 
@@ -48,7 +48,9 @@ export function Analyze() {
   const handleFile = useCallback((candidate: File | undefined) => {
     if (!candidate) return;
     if (!ACCEPTED_TYPES.includes(candidate.type)) {
-      setError("Unsupported file type. Please upload a JPEG, PNG, or WebP image.");
+      // Wording is generic; the accepted types are still enforced by
+      // ACCEPTED_TYPES above and by the input's `accept` attribute.
+      setError("Unsupported document type. Please upload a supported document.");
       return;
     }
     setError(null);
@@ -87,7 +89,7 @@ export function Analyze() {
       <PageHeader
         eyebrow="New analysis"
         title="Upload a document image"
-        description="The image is analyzed for localized compression inconsistencies. Results are presented as evidence for review, not as an authenticity verdict."
+        description="The document is analyzed to identify regions showing unusual visual evidence. Results are presented as evidence for review, not as an authenticity verdict."
       />
 
       <div
@@ -139,10 +141,11 @@ export function Analyze() {
         ) : (
           <>
             <UploadGlyph />
-            <p className="mb-1 mt-4 font-mono text-sm text-ink">
-              Drop an image here, or click to browse
+            {/* The accepted types are still enforced by ACCEPTED_TYPES and the
+                file input's `accept` attribute — only the helper text is gone. */}
+            <p className="mt-4 font-mono text-sm text-ink">
+              Drop your document or click to browse
             </p>
-            <p className="text-xs text-ink-faint">JPEG, PNG, or WebP</p>
           </>
         )}
       </div>

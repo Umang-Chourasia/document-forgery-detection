@@ -68,11 +68,24 @@ export interface TamperingRisk {
 export interface NarrativeEvidence {
   /** Legacy single-paragraph form, kept for analyses stored before Phase 4. */
   summary?: string;
+
+  /**
+   * Concise point-wise form. These are the fields the UI renders now; the
+   * prose fields below are retained so analyses stored before this format
+   * still display correctly.
+   */
+  what_the_analysis_shows?: string[];
+  interpretation?: string[];
+  confidence?: string[];
+
+  /** Prose form, from earlier stored analyses. Rendered only as a fallback. */
   observed_evidence?: string;
   location_description?: string;
   plain_language_meaning?: string;
-  possible_pattern?: string;
   pattern_reasoning?: string;
+
+  /** Still produced and still rendered, in both formats. */
+  possible_pattern?: string;
   pattern_confidence?: string;
   caveats?: string;
 }

@@ -240,87 +240,294 @@ export function computeHeatmapMetrics(pngBuffer) {
  * This is a fixed rule over the measured metrics — the same heatmap always
  * yields the same level, and no language model is involved in choosing it.
  *
- * Why the rules are shaped this way: real CAT-Net output is strongly
- * bimodal. Measured on genuine output, 6.07% of pixels were at or above
- * intensity 0.3 while 5.44% were at or above 0.9 — barely anything sits in
- * between. Banding by intensity alone would therefore collapse to LOW or
- * HIGH and essentially never produce MEDIUM, so extent and spatial
- * structure carry the distinction instead:
+ * The rule is a weighted score over three normalised sub-scores, banded into
+ * LOW / MEDIUM / HIGH, with two hard gates.
  *
- *   LOW    nothing meaningful flagged
- *   MEDIUM flagged, but either small in extent or fragmented into speckle
- *          rather than forming a coherent region
- *   HIGH   a substantial, coherent flagged area
+ * Why it is shaped this way. The previous rule used peak intensity only as an
+ * on/off gate at 0.5, so a peak of 0.51 and a peak of 1.00 were treated
+ * identically and peak strength carried no weight at all above the gate. Peak
+ * intensity is now the dominant term, while extent and spatial structure
+ * remain genuinely decisive — a strong peak with no spatial support is not
+ * evidence of anything.
+ *
+ * Two properties are deliberate and load-bearing:
+ *
+ *   1. PEAK_WEIGHT (0.55) is strictly less than HIGH_SCORE (0.62). A perfect
+ *      1.0 peak with no area and no coherence scores 0.55, so peak intensity
+ *      ALONE can never reach HIGH. This is the arithmetic guarantee that a
+ *      single hot pixel cannot drive the classification.
+ *   2. HIGH additionally requires real measured area and a real coherent
+ *      region (the G2 gate below), independently of the score.
+ *
+ * Area and region use a logarithmic ramp because they span three orders of
+ * magnitude; a linear ramp would make everything below ~1% indistinguishable
+ * from zero.
+ *
+ * Sub-threshold note: every spatial metric is derived from the mask at
+ * EVIDENCE_THRESHOLD, so when nothing reaches that threshold they are all
+ * structurally zero. The elevated-area term reads the existing intensity
+ * histogram so that heatmaps peaking below the threshold are still graded
+ * rather than collapsing to a flat zero. It carries half credit, because it
+ * measures a weaker signal than the primary mask does.
  */
 export const RISK_RULES = {
-  /** Below this, the heatmap is treated as showing no real evidence. */
-  minEvidenceAreaFraction: 0.001, // 0.1% of the image
-  /** Nothing reaches this intensity => no evidence worth reporting. */
-  minMaxIntensity: 0.5,
+  // --- Weights. Must sum to 1, and PEAK must stay below highScore. ---
+  peakWeight: 0.55,
+  extentWeight: 0.25,
+  coherenceWeight: 0.2,
+
+  // --- Peak intensity ramp ---
+  /** At or below this peak, the heatmap shows nothing worth reporting. */
+  peakFloor: 0.2,
+  /** Peak contribution is maximal at and above this. */
+  peakSaturation: 0.95,
+
+  // --- Extent ramps ---
+  /** Flagged area below this is treated as noise. */
+  evidenceFloor: 0.0005, // 0.05% of the image
+  /** Extent contribution is maximal at and above this. */
+  areaSaturation: 0.05, // 5%
+  /** Elevated (sub-threshold) area below this is treated as noise. */
+  elevatedFloor: 0.005, // 0.5% of the image at or above ELEVATED_INTENSITY
+  /** Elevated-area contribution is maximal at and above this. */
+  elevatedSaturation: 0.2, // 20%
+
+  // --- Coherence ramp ---
+  /** Largest coherent region below this contributes nothing. */
+  regionFloor: 0.0005, // 0.05%
+  /** Coherence contribution is maximal at and above this. */
+  regionSaturation: 0.02, // 2%
+
+  // --- Bands ---
+  /** Score at or above this is at least MEDIUM. */
+  mediumScore: 0.3,
+  /** Score at or above this is HIGH, if the spatial gate also passes. */
+  highScore: 0.62,
+
+  // --- HIGH spatial gate (G2): required regardless of score ---
   /** HIGH needs at least this much of the image flagged... */
-  highEvidenceAreaFraction: 0.02, // 2%
+  highMinArea: 0.005, // 0.5%
   /** ...and at least this much of it in one coherent region. */
-  highLargestRegionFraction: 0.005, // 0.5%
+  highMinRegion: 0.002, // 0.2%
 };
+
+/**
+ * Intensity at or above which a pixel counts towards the elevated-area term.
+ * Lower than EVIDENCE_THRESHOLD on purpose: this is the sub-threshold signal.
+ * Must align with a histogram band boundary — band index 3 of 10 starts here.
+ */
+export const ELEVATED_INTENSITY = 0.3;
+const ELEVATED_FIRST_BAND = 3;
+
+function clamp01(value) {
+  if (!Number.isFinite(value)) return 0;
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+/** Linear ramp from `floor` to `saturation`, clamped to [0, 1]. */
+function linearRamp(value, floor, saturation) {
+  if (!Number.isFinite(value) || saturation <= floor) return 0;
+  return clamp01((value - floor) / (saturation - floor));
+}
+
+/**
+ * Logarithmic ramp, clamped to [0, 1]. `floor` sets the knee: values well
+ * below it score near zero, and the curve reaches 1 at `saturation`.
+ */
+function logRamp(value, floor, saturation) {
+  if (!Number.isFinite(value) || value <= 0 || floor <= 0 || saturation <= floor) {
+    return 0;
+  }
+  return clamp01(Math.log1p(value / floor) / Math.log1p(saturation / floor));
+}
+
+/**
+ * Fraction of measured pixels at or above ELEVATED_INTENSITY, read from the
+ * histogram the metrics payload already carries. Returns 0 when the histogram
+ * is missing or empty, so an older stored payload degrades to "no
+ * sub-threshold signal" rather than to NaN.
+ */
+function elevatedAreaFraction(histogram) {
+  if (!Array.isArray(histogram) || histogram.length === 0) return 0;
+
+  let total = 0;
+  let elevated = 0;
+  for (let i = 0; i < histogram.length; i++) {
+    const count = Number(histogram[i]);
+    if (!Number.isFinite(count)) continue;
+    total += count;
+    if (i >= ELEVATED_FIRST_BAND) elevated += count;
+  }
+
+  return total > 0 ? elevated / total : 0;
+}
+
+/**
+ * Scores a metrics payload without banding it. Separated so the score and its
+ * components can be asserted directly in tests and reported in `inputs`.
+ */
+export function scoreTamperingEvidence(metrics) {
+  const maxIntensity = Number(metrics.maxIntensity) || 0;
+  const evidenceAreaFraction = Number(metrics.evidenceAreaFraction) || 0;
+  const largestRegionFraction = Number(metrics.largestRegionFraction) || 0;
+  const largestRegionShare = Number(metrics.largestRegionShare) || 0;
+  const elevatedArea = elevatedAreaFraction(metrics.intensityHistogram);
+
+  // Peak intensity — the dominant term.
+  const peakScore = linearRamp(
+    maxIntensity,
+    RISK_RULES.peakFloor,
+    RISK_RULES.peakSaturation,
+  );
+
+  // Extent. The primary measure is the flagged area at EVIDENCE_THRESHOLD;
+  // the elevated area stands in at half credit when that mask is empty.
+  const areaScore = logRamp(
+    evidenceAreaFraction,
+    RISK_RULES.evidenceFloor,
+    RISK_RULES.areaSaturation,
+  );
+  const elevatedScore = logRamp(
+    elevatedArea,
+    RISK_RULES.elevatedFloor,
+    RISK_RULES.elevatedSaturation,
+  );
+  const extentScore = Math.max(areaScore, 0.5 * elevatedScore);
+
+  // Spatial coherence, discounted when the flagged area is fragmented:
+  // largestRegionShare near 1 is one coherent region, near 0 is speckle.
+  const regionScore = logRamp(
+    largestRegionFraction,
+    RISK_RULES.regionFloor,
+    RISK_RULES.regionSaturation,
+  );
+  const coherenceScore = regionScore * (0.5 + 0.5 * clamp01(largestRegionShare));
+
+  const score =
+    RISK_RULES.peakWeight * peakScore +
+    RISK_RULES.extentWeight * extentScore +
+    RISK_RULES.coherenceWeight * coherenceScore;
+
+  return {
+    score: round(clamp01(score)),
+    peakScore: round(peakScore),
+    extentScore: round(extentScore),
+    coherenceScore: round(coherenceScore),
+    elevatedArea: round(elevatedArea),
+    maxIntensity,
+    evidenceAreaFraction,
+    largestRegionFraction,
+    largestRegionShare,
+  };
+}
 
 export function classifyTamperingRisk(metrics) {
   if (!metrics) return null;
 
+  const s = scoreTamperingEvidence(metrics);
   const {
-    evidenceAreaFraction,
+    score,
     maxIntensity,
+    evidenceAreaFraction,
     largestRegionFraction,
-    regionCount,
     largestRegionShare,
-  } = metrics;
+    elevatedArea,
+  } = s;
+  const regionCount = Number(metrics.regionCount) || 0;
 
-  if (
-    maxIntensity < RISK_RULES.minMaxIntensity ||
-    evidenceAreaFraction < RISK_RULES.minEvidenceAreaFraction
-  ) {
+  const pct = (v, places = 2) => `${(v * 100).toFixed(places)}%`;
+
+  // --- G1: nothing worth reporting. ---
+  const belowPeakFloor = maxIntensity < RISK_RULES.peakFloor;
+  const belowAreaFloor =
+    evidenceAreaFraction < RISK_RULES.evidenceFloor &&
+    elevatedArea < RISK_RULES.elevatedFloor;
+
+  if (belowPeakFloor || belowAreaFloor) {
     return {
       level: "LOW",
       rule: "below_evidence_floor",
       rationale:
-        `Localized evidence covers ${(evidenceAreaFraction * 100).toFixed(2)}% of the heatmap ` +
-        `with a peak intensity of ${maxIntensity.toFixed(2)}, below the reporting floor of ` +
-        `${(RISK_RULES.minEvidenceAreaFraction * 100).toFixed(2)}% area and ` +
-        `${RISK_RULES.minMaxIntensity} intensity. No meaningful localized evidence.`,
-      inputs: { evidenceAreaFraction, maxIntensity },
+        `Peak measured intensity reaches ${maxIntensity.toFixed(2)} and detected evidence ` +
+        `covers ${pct(evidenceAreaFraction)} of the document. That falls below the level at ` +
+        `which evidence is reported. No meaningful localized evidence.`,
+      score,
+      inputs: {
+        score,
+        maxIntensity,
+        evidenceAreaFraction,
+        elevatedArea,
+      },
     };
   }
 
-  if (
-    evidenceAreaFraction >= RISK_RULES.highEvidenceAreaFraction &&
-    largestRegionFraction >= RISK_RULES.highLargestRegionFraction
-  ) {
+  const inputs = {
+    score,
+    maxIntensity,
+    evidenceAreaFraction,
+    largestRegionFraction,
+    largestRegionShare,
+    regionCount,
+    elevatedArea,
+  };
+
+  // Measurements only. The weighted score and the rule constants are
+  // deliberately absent: they are internal to the rule, and the reviewer-facing
+  // rationale should describe the evidence, not the machinery.
+  const basis =
+    `Peak measured intensity ${maxIntensity.toFixed(2)}, with detected evidence over ` +
+    `${pct(evidenceAreaFraction)} of the document across ${regionCount} region(s), ` +
+    `the largest holding ${pct(largestRegionShare, 0)} of the detected evidence ` +
+    `(${pct(largestRegionFraction)} of the document).`;
+
+  // --- G2: HIGH needs the score AND real spatial support. ---
+  const meetsHighScore = score >= RISK_RULES.highScore;
+  const meetsHighArea = evidenceAreaFraction >= RISK_RULES.highMinArea;
+  const meetsHighRegion = largestRegionFraction >= RISK_RULES.highMinRegion;
+
+  if (meetsHighScore && meetsHighArea && meetsHighRegion) {
     return {
       level: "HIGH",
       rule: "substantial_coherent_region",
       rationale:
-        `Localized evidence covers ${(evidenceAreaFraction * 100).toFixed(2)}% of the heatmap ` +
-        `(threshold ${(RISK_RULES.highEvidenceAreaFraction * 100).toFixed(0)}%), and its largest ` +
-        `single region alone covers ${(largestRegionFraction * 100).toFixed(2)}% ` +
-        `(threshold ${(RISK_RULES.highLargestRegionFraction * 100).toFixed(1)}%). ` +
-        `Substantial, spatially coherent evidence.`,
-      inputs: { evidenceAreaFraction, largestRegionFraction, regionCount },
+        `${basis} The evidence is strong in intensity, extensive across the ` +
+        `document, and concentrated into a coherent region rather than scattered. ` +
+        `Strong, spatially coherent evidence.`,
+      score,
+      inputs,
+    };
+  }
+
+  if (score >= RISK_RULES.mediumScore) {
+    // Name the reason HIGH was not reached, so the level is explainable.
+    const rule = !meetsHighScore
+      ? evidenceAreaFraction < RISK_RULES.highMinArea
+        ? "limited_extent"
+        : "fragmented_distribution"
+      : !meetsHighArea
+        ? "limited_extent"
+        : "fragmented_distribution";
+
+    return {
+      level: "MEDIUM",
+      rule,
+      rationale:
+        `${basis} Taken together that is short of strong evidence. ` +
+        (rule === "limited_extent"
+          ? `Present but limited in extent.`
+          : `Present but fragmented rather than forming one coherent region.`),
+      score,
+      inputs,
     };
   }
 
   return {
-    level: "MEDIUM",
-    rule:
-      evidenceAreaFraction < RISK_RULES.highEvidenceAreaFraction
-        ? "limited_extent"
-        : "fragmented_distribution",
+    level: "LOW",
+    rule: "weak_evidence",
     rationale:
-      `Localized evidence covers ${(evidenceAreaFraction * 100).toFixed(2)}% of the heatmap ` +
-      `across ${regionCount} region(s), with the largest holding ` +
-      `${(largestRegionShare * 100).toFixed(0)}% of the flagged area ` +
-      `(${(largestRegionFraction * 100).toFixed(2)}% of the image). ` +
-      (evidenceAreaFraction < RISK_RULES.highEvidenceAreaFraction
-        ? `Present but limited in extent.`
-        : `Widespread but fragmented rather than forming one coherent region.`),
-    inputs: { evidenceAreaFraction, largestRegionFraction, regionCount, largestRegionShare },
+      `${basis} Any detected regions are too faint, too small or too scattered to ` +
+      `constitute meaningful localized evidence.`,
+    score,
+    inputs,
   };
 }

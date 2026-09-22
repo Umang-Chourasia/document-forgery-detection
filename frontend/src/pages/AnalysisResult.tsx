@@ -129,59 +129,59 @@ export function AnalysisResult() {
       )}
 
       {analysis.status === "COMPLETED" && page && (
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-          {/* ---- Layer 1: CAT-Net localization ---- */}
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-                CAT-Net Localization
-              </h2>
-              <span className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-                Model output · unmodified
-              </span>
+        <>
+          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+            {/* ---- Layer 1: localization ---- */}
+            <section>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+                  Document Localization
+                </h2>
+              </div>
+              <HeatmapViewer page={page} />
+            </section>
+
+            <aside className="flex flex-col gap-6">
+              {/* ---- Layer 2: Tampering Risk (deterministic rule) ---- */}
+              {analysis.risk && <RiskCard risk={analysis.risk} />}
+
+              {/* ---- Layer 3: Measured evidence (deterministic) ---- */}
+              {analysis.metrics && (
+                <MeasuredEvidence metrics={analysis.metrics} risk={analysis.risk} />
+              )}
+            </aside>
+          </div>
+
+          {/* ---- Layer 4: AI interpretation, full width beneath the grid ---- */}
+          {(analysis.narrative || analysis.narrativeError) && (
+            <div className="mt-8">
+              {analysis.narrativeError ? (
+                <Card tone="caution" className="p-5">
+                  <CardHeader
+                    title="Interpretation Unavailable"
+                    titleClass="text-caution"
+                  />
+                  <p className="text-sm leading-relaxed text-ink-muted">
+                    {analysis.narrativeError}
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                    The heatmap, measurements and risk level above are unaffected —
+                    only the written interpretation is missing.
+                  </p>
+                </Card>
+              ) : (
+                analysis.narrative && <NarrativePanel narrative={analysis.narrative} />
+              )}
             </div>
-            <HeatmapViewer
-              page={page}
-              evidenceThreshold={analysis.metrics?.evidenceThreshold}
-            />
-          </section>
+          )}
 
-          <aside className="flex flex-col gap-6">
-            {/* ---- Layer 2: Tampering Risk (deterministic rule) ---- */}
-            {analysis.risk && <RiskCard risk={analysis.risk} />}
-
-            {/* ---- Layer 3: Measured evidence (deterministic) ---- */}
-            {analysis.metrics && (
-              <MeasuredEvidence metrics={analysis.metrics} risk={analysis.risk} />
-            )}
-
-            {analysis.narrativeError && (
-              <Card tone="caution" className="p-5">
-                <CardHeader
-                  title="Interpretation Unavailable"
-                  titleClass="text-caution"
-                />
-                <p className="text-sm leading-relaxed text-ink-muted">
-                  {analysis.narrativeError}
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                  The heatmap, measurements and risk level above are unaffected — only
-                  the written interpretation is missing.
-                </p>
-              </Card>
-            )}
-
-            {/* ---- Layer 4: AI interpretation ---- */}
-            {analysis.narrative && <NarrativePanel narrative={analysis.narrative} />}
-
-            <Link
-              to="/history"
-              className="font-mono text-xs text-ink-faint transition-colors hover:text-ink"
-            >
-              ← All analyses
-            </Link>
-          </aside>
-        </div>
+          <Link
+            to="/history"
+            className="mt-8 inline-block font-mono text-xs text-ink-faint transition-colors hover:text-ink"
+          >
+            ← All analyses
+          </Link>
+        </>
       )}
     </div>
   );

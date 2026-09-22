@@ -77,18 +77,18 @@ async function runPipeline(id: string, userId: string, file: File, originalImage
       // the row FAILED with a sanitized message.
       if (isAbortError(err)) {
         throw new Error(
-          `The CAT-Net server did not respond within ${CATNET_TIMEOUT_MS / 1000} seconds. ` +
+          `The analysis service did not respond within ${CATNET_TIMEOUT_MS / 1000} seconds. ` +
             `It may be offline or overloaded.`,
         );
       }
       throw err;
     }
 
-    if (!response.ok) throw new Error(`CAT-Net server returned ${response.status}`);
+    if (!response.ok) throw new Error(`The analysis service returned ${response.status}.`);
     const predictData: PredictResponse = await response.json();
 
     if (!predictData.results?.length) {
-      throw new Error("CAT-Net returned no result for this image.");
+      throw new Error("The analysis returned no result for this document.");
     }
 
     // --- Heatmap: fetch once, use for both display and storage.
