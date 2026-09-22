@@ -7,6 +7,10 @@ import {
   supabase,
 } from "../api/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { AuthShell } from "../components/layout/AuthShell";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Field } from "../components/ui/Input";
 
 export function Signup() {
   const navigate = useNavigate();
@@ -70,74 +74,68 @@ export function Signup() {
   };
 
   return (
-    <div className="mx-auto max-w-md px-6 py-20">
-      <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
-        Create account
-      </p>
-      <h1 className="mb-8 text-2xl font-medium text-ink">Get started</h1>
-
+    <AuthShell eyebrow="Create account" title="Get started">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Email</span>
-          <input
-            id="signup-email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-sm border border-border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
-          />
-        </label>
+        <Field
+          id="signup-email"
+          label="Email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Password</span>
-          <input
-            id="signup-password"
-            type="password"
-            required
-            minLength={6}
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-sm border border-border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
-          />
-          <span className="text-xs text-ink-faint">At least 6 characters.</span>
-        </label>
+        <Field
+          id="signup-password"
+          label="Password"
+          type="password"
+          required
+          minLength={6}
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          hint="At least 6 characters."
+        />
 
-        <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-surface p-4">
-          <input
-            id="signup-consent"
-            type="checkbox"
-            required
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
-          />
-          <span className="text-sm leading-relaxed text-ink-muted">{RETENTION_CONSENT_TEXT}</span>
-        </label>
+        {/* Consent block. The text itself is the consent record and is
+            rendered verbatim from api/supabase.ts — presentation only here. */}
+        <div className="mt-2 rounded-sm border border-border bg-canvas/50">
+          <p className="border-b border-border px-4 py-2 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+            Data retention · {RETENTION_DAYS} days
+          </p>
+          <label className="flex cursor-pointer items-start gap-3 p-4">
+            <input
+              id="signup-consent"
+              type="checkbox"
+              required
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+            />
+            <span className="text-sm leading-relaxed text-ink-muted">
+              {RETENTION_CONSENT_TEXT}
+            </span>
+          </label>
+        </div>
 
         {error && (
-          <p className="rounded-sm border border-evidence/30 bg-evidence-soft px-3 py-2 text-sm text-evidence">
-            {error}
-          </p>
+          <Card tone="evidence" className="px-3 py-2">
+            <p className="text-sm text-evidence">{error}</p>
+          </Card>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 rounded-sm border border-accent/40 bg-accent-soft py-3 font-mono text-sm font-medium text-accent transition-colors enabled:hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" disabled={submitting} size="lg" className="mt-2 w-full">
           {submitting ? "Creating account…" : "Create Account"}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-sm text-ink-muted">
+      <p className="mt-6 text-center text-sm text-ink-muted">
         Already have an account?{" "}
         <Link to="/login" className="text-accent hover:underline">
           Sign in
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

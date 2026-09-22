@@ -1,8 +1,33 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createAnalysis } from "../api/analysis";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { PageHeader } from "../components/ui/PageHeader";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/** What the pipeline will do, in the order the result page presents it. */
+const PIPELINE_STEPS = [
+  {
+    label: "CAT-Net localization",
+    body: "Traces compression artifacts and returns a heatmap marking where the page is locally inconsistent.",
+  },
+  {
+    label: "Measured evidence",
+    body: "Deterministic statistics computed from that heatmap, plus a rule-based tampering risk level.",
+  },
+  {
+    label: "AI interpretation",
+    body: "A written reading of the evidence for a human reviewer — never a verdict on the document.",
+  },
+];
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function Analyze() {
   const navigate = useNavigate();
@@ -12,6 +37,13 @@ export function Analyze() {
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Release the previous preview when it is replaced, and on unmount.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleFile = useCallback((candidate: File | undefined) => {
     if (!candidate) return;
@@ -41,12 +73,22 @@ export function Analyze() {
     }
   };
 
+  const clearFile = () => {
+    setFile(null);
+    setPreviewUrl(null);
+    setError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const openPicker = () => inputRef.current?.click();
+
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16">
-      <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
-        Step 1 of 1
-      </p>
-      <h1 className="mb-8 text-2xl font-medium text-ink">Upload a document image</h1>
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <PageHeader
+        eyebrow="New analysis"
+        title="Upload a document image"
+        description="The image is analyzed for localized compression inconsistencies. Results are presented as evidence for review, not as an authenticity verdict."
+      />
 
       <div
         onDragOver={(e) => {
@@ -59,7 +101,16 @@ export function Analyze() {
           setIsDragging(false);
           handleFile(e.dataTransfer.files[0]);
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={openPicker}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openPicker();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label="Choose a document image to analyze"
         className={`flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed p-8 text-center transition-colors ${
           isDragging
             ? "border-accent bg-accent-soft"
@@ -75,14 +126,20 @@ export function Analyze() {
         />
 
         {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt="Selected document preview"
-            className="max-h-56 rounded-sm border border-border object-contain"
-          />
+          <>
+            <img
+              src={previewUrl}
+              alt="Selected document preview"
+              className="max-h-64 rounded-sm border border-border object-contain"
+            />
+            <p className="mt-3 font-mono text-[11px] text-ink-faint">
+              Click to choose a different image
+            </p>
+          </>
         ) : (
           <>
-            <p className="mb-1 font-mono text-sm text-ink">
+            <UploadGlyph />
+            <p className="mb-1 mt-4 font-mono text-sm text-ink">
               Drop an image here, or click to browse
             </p>
             <p className="text-xs text-ink-faint">JPEG, PNG, or WebP</p>
@@ -91,22 +148,90 @@ export function Analyze() {
       </div>
 
       {file && (
-        <p className="mt-3 truncate font-mono text-xs text-ink-muted">{file.name}</p>
+        <div className="mt-3 flex items-center gap-3 rounded-sm border border-border bg-surface px-3 py-2.5">
+          <span className="rounded-sm border border-accent/30 bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] uppercase text-accent">
+            {file.type.replace("image/", "")}
+          </span>
+          <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink">
+            {file.name}
+          </span>
+          <span className="shrink-0 font-mono text-xs text-ink-faint">
+            {formatBytes(file.size)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              clearFile();
+            }}
+            disabled={isSubmitting}
+            className="shrink-0 font-mono text-xs text-ink-faint transition-colors hover:text-evidence disabled:opacity-40"
+          >
+            Remove
+          </button>
+        </div>
       )}
 
       {error && (
-        <p className="mt-3 rounded-sm border border-evidence/30 bg-evidence-soft px-3 py-2 text-sm text-evidence">
-          {error}
-        </p>
+        <Card tone="evidence" className="mt-3 px-3 py-2">
+          <p className="text-sm text-evidence">{error}</p>
+        </Card>
       )}
 
-      <button
+      <Button
         onClick={handleSubmit}
         disabled={!file || isSubmitting}
-        className="mt-8 w-full rounded-sm border border-accent/40 bg-accent-soft py-3 font-mono text-sm font-medium text-accent transition-colors enabled:hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+        size="lg"
+        className="mt-6 w-full"
       >
         {isSubmitting ? "Starting analysis…" : "Run Analysis"}
-      </button>
+      </Button>
+
+      <section className="mt-10 border-t border-border pt-6">
+        <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
+          What happens next
+        </p>
+        <ol className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+          {PIPELINE_STEPS.map((step, i) => (
+            <li
+              key={step.label}
+              className="flex-1 rounded-sm border border-border bg-surface p-4"
+            >
+              <p className="mb-1.5 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-accent">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full border border-accent/40 text-[9px]">
+                  {i + 1}
+                </span>
+                {step.label}
+              </p>
+              <p className="text-xs leading-relaxed text-ink-muted">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
+  );
+}
+
+function UploadGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-10 w-10 text-ink-faint"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 15v2.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

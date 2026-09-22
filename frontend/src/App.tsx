@@ -7,6 +7,7 @@ import { AnalysisResult } from "./pages/AnalysisResult";
 import { History } from "./pages/History";
 import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
+import { NotFound } from "./pages/NotFound";
 import { Signup } from "./pages/Signup";
 
 function App() {
@@ -26,6 +27,8 @@ function App() {
               <Route path="/analysis/:id" element={<AnalysisResult />} />
               <Route path="/history" element={<History />} />
             </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </AuthProvider>

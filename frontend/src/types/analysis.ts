@@ -51,6 +51,14 @@ export interface TamperingRisk {
   level: RiskLevel;
   rule: string;
   rationale: string;
+  /**
+   * The metric values the rule actually read, keyed by metric name. Already
+   * emitted by classifyTamperingRisk() in narrative-service/metrics.mjs and
+   * already persisted with the risk object; declared here so the UI can mark
+   * which measurements drove the level instead of assuming a fixed list.
+   * Optional because analyses stored before this was surfaced may omit it.
+   */
+  inputs?: Partial<Record<string, number>>;
 }
 
 /**

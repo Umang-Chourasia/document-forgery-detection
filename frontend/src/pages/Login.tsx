@@ -2,6 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { AuthShell } from "../components/layout/AuthShell";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Field } from "../components/ui/Input";
 
 export function Login() {
   const navigate = useNavigate();
@@ -40,58 +44,45 @@ export function Login() {
   };
 
   return (
-    <div className="mx-auto max-w-md px-6 py-20">
-      <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">Sign in</p>
-      <h1 className="mb-8 text-2xl font-medium text-ink">Welcome back</h1>
-
+    <AuthShell eyebrow="Sign in" title="Welcome back">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Email</span>
-          <input
-            id="login-email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-sm border border-border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
-          />
-        </label>
+        <Field
+          id="login-email"
+          label="Email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Password</span>
-          <input
-            id="login-password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-sm border border-border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
-          />
-        </label>
+        <Field
+          id="login-password"
+          label="Password"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
         {error && (
-          <p className="rounded-sm border border-evidence/30 bg-evidence-soft px-3 py-2 text-sm text-evidence">
-            {error}
-          </p>
+          <Card tone="evidence" className="px-3 py-2">
+            <p className="text-sm text-evidence">{error}</p>
+          </Card>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 rounded-sm border border-accent/40 bg-accent-soft py-3 font-mono text-sm font-medium text-accent transition-colors enabled:hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" disabled={submitting} size="lg" className="mt-2 w-full">
           {submitting ? "Signing in…" : "Sign In"}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-sm text-ink-muted">
+      <p className="mt-6 text-center text-sm text-ink-muted">
         Don't have an account?{" "}
         <Link to="/signup" className="text-accent hover:underline">
           Create one
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

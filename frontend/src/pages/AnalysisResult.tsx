@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getAnalysis } from "../api/analysis";
 import { HeatmapViewer } from "../components/evidence/HeatmapViewer";
+import { MeasuredEvidence } from "../components/evidence/MeasuredEvidence";
+import { NarrativePanel } from "../components/evidence/NarrativePanel";
 import { ProcessingTimeline } from "../components/evidence/ProcessingTimeline";
-import { RiskBadge } from "../components/evidence/RiskBadge";
+import { RiskCard } from "../components/evidence/RiskCard";
+import { StatusBadge } from "../components/evidence/StatusBadge";
+import { ButtonLink } from "../components/ui/Button";
+import { Card, CardHeader } from "../components/ui/Card";
+import { Skeleton } from "../components/ui/Skeleton";
 import type { Analysis } from "../types/analysis";
 
 const POLL_INTERVAL_MS = 800;
@@ -51,17 +57,30 @@ export function AnalysisResult() {
   if (error) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16">
-        <p className="rounded-sm border border-evidence/30 bg-evidence-soft px-4 py-3 text-sm text-evidence">
-          {error}
-        </p>
+        <Card tone="evidence" className="px-4 py-3">
+          <p className="text-sm text-evidence">{error}</p>
+        </Card>
+        <ButtonLink to="/history" variant="secondary" size="sm" className="mt-6">
+          Back to history
+        </ButtonLink>
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center font-mono text-sm text-ink-muted">
-        Loading analysis…
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="mb-8 flex flex-col gap-2 border-b border-border pb-6">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-6 w-64" />
+        </div>
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <Skeleton className="h-[62vh] min-h-[360px] w-full" />
+          <div className="flex flex-col gap-6">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -70,188 +89,100 @@ export function AnalysisResult() {
   const page = analysis.pages[0];
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
-      <header className="mb-8 flex items-start justify-between border-b border-border pb-6">
-        <div>
+    <div className="mx-auto max-w-7xl px-6 py-12">
+      <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
+        <div className="min-w-0">
           <p className="mb-1 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
             Analysis
           </p>
-          <h1 className="truncate text-xl font-medium text-ink">{analysis.documentName}</h1>
+          <h1 className="break-words text-xl font-medium text-ink">
+            {analysis.documentName}
+          </h1>
           <p className="mt-1 font-mono text-xs text-ink-muted">
-            {analysis.pageCount} page · {analysis.documentType || "image"}
+            {analysis.pageCount} page · {analysis.documentType || "image"} ·{" "}
+            {new Date(analysis.createdAt).toLocaleString()}
           </p>
         </div>
         <StatusBadge status={analysis.status} />
       </header>
 
       {isProcessing && (
-        <div className="rounded-sm border border-border bg-surface p-8">
-          <ProcessingTimeline status={analysis.status} currentStage={analysis.stage} />
-        </div>
+        <Card className="p-8">
+          <ProcessingTimeline
+            status={analysis.status}
+            currentStage={analysis.stage}
+            startedAt={analysis.createdAt}
+          />
+        </Card>
       )}
 
       {analysis.status === "FAILED" && (
-        <div className="rounded-sm border border-evidence/30 bg-evidence-soft p-6 text-sm text-evidence">
-          Analysis failed{analysis.error ? `: ${analysis.error}` : "."} Try uploading the
-          image again.
-        </div>
+        <Card tone="evidence" className="p-6">
+          <p className="text-sm leading-relaxed text-evidence">
+            Analysis failed{analysis.error ? `: ${analysis.error}` : "."} Try uploading
+            the image again.
+          </p>
+          <ButtonLink to="/analyze" variant="secondary" size="sm" className="mt-4">
+            New analysis
+          </ButtonLink>
+        </Card>
       )}
 
       {analysis.status === "COMPLETED" && page && (
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_320px]">
-          <HeatmapViewer page={page} />
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          {/* ---- Layer 1: CAT-Net localization ---- */}
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
+                CAT-Net Localization
+              </h2>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+                Model output · unmodified
+              </span>
+            </div>
+            <HeatmapViewer
+              page={page}
+              evidenceThreshold={analysis.metrics?.evidenceThreshold}
+            />
+          </section>
 
           <aside className="flex flex-col gap-6">
-            {/* ---- Tampering Risk: deterministic, rule-based ---- */}
-            {analysis.risk && (
-              <div className="rounded-sm border border-border bg-surface p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-                    Tampering Risk
-                  </h2>
-                  <RiskBadge level={analysis.risk.level} />
-                </div>
-                <p className="text-sm leading-relaxed text-ink-muted">
-                  {analysis.risk.rationale}
-                </p>
-                <p className="mt-2 font-mono text-[11px] leading-relaxed text-ink-faint">
-                  Determined by a fixed rule over the measurements below — not by the
-                  language model, and not a CAT-Net confidence value.
-                </p>
-              </div>
-            )}
+            {/* ---- Layer 2: Tampering Risk (deterministic rule) ---- */}
+            {analysis.risk && <RiskCard risk={analysis.risk} />}
 
-            {/* ---- Measured evidence: deterministic ---- */}
+            {/* ---- Layer 3: Measured evidence (deterministic) ---- */}
             {analysis.metrics && (
-              <div className="rounded-sm border border-border bg-surface p-5">
-                <h2 className="mb-1 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Measured Evidence
-                </h2>
-                <p className="mb-3 text-[11px] leading-relaxed text-ink-faint">
-                  Derived from the rendered heatmap. Measurements, not model output.
-                </p>
-                <dl className="flex flex-col gap-2 font-mono text-xs">
-                  <Metric
-                    label="Flagged area"
-                    value={`${(analysis.metrics.evidenceAreaFraction * 100).toFixed(2)}%`}
-                  />
-                  <Metric
-                    label="Peak intensity"
-                    value={analysis.metrics.maxIntensity.toFixed(2)}
-                  />
-                  <Metric
-                    label="Mean (flagged)"
-                    value={analysis.metrics.meanEvidenceIntensity.toFixed(2)}
-                  />
-                  <Metric label="Regions" value={String(analysis.metrics.regionCount)} />
-                  <Metric
-                    label="Largest region"
-                    value={`${(analysis.metrics.largestRegionFraction * 100).toFixed(2)}% of image`}
-                  />
-                  <Metric
-                    label="Concentration"
-                    value={`${(analysis.metrics.largestRegionShare * 100).toFixed(0)}% in largest`}
-                  />
-                </dl>
-              </div>
+              <MeasuredEvidence metrics={analysis.metrics} risk={analysis.risk} />
             )}
 
             {analysis.narrativeError && (
-              <div className="rounded-sm border border-caution/30 bg-surface p-5">
-                <h2 className="mb-2 font-mono text-xs uppercase tracking-wide text-caution">
-                  Interpretation Unavailable
-                </h2>
+              <Card tone="caution" className="p-5">
+                <CardHeader
+                  title="Interpretation Unavailable"
+                  titleClass="text-caution"
+                />
                 <p className="text-sm leading-relaxed text-ink-muted">
                   {analysis.narrativeError}
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                  The heatmap, measurements and risk level above are unaffected — only the
-                  written interpretation is missing.
+                  The heatmap, measurements and risk level above are unaffected — only
+                  the written interpretation is missing.
                 </p>
-              </div>
+              </Card>
             )}
 
-            {/* ---- LLM interpretation: clearly separated from the above ---- */}
-            {analysis.narrative && (
-              <div className="rounded-sm border border-border bg-surface p-5">
-                <h2 className="mb-1 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  AI Interpretation
-                </h2>
-                <p className="mb-3 text-[11px] leading-relaxed text-ink-faint">
-                  Generated from the evidence above. Interpretation, not measurement.
-                </p>
+            {/* ---- Layer 4: AI interpretation ---- */}
+            {analysis.narrative && <NarrativePanel narrative={analysis.narrative} />}
 
-                {analysis.narrative.summary && (
-                  <p className="text-sm leading-relaxed text-ink-muted">
-                    {analysis.narrative.summary}
-                  </p>
-                )}
-
-                <div className="flex flex-col gap-3">
-                  <NarrativeField label="What the heatmap shows" value={analysis.narrative.observed_evidence} />
-                  <NarrativeField label="Where" value={analysis.narrative.location_description} />
-                  <NarrativeField label="What it means" value={analysis.narrative.plain_language_meaning} />
-                  {analysis.narrative.possible_pattern && (
-                    <div>
-                      <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-                        Possible pattern
-                        {analysis.narrative.pattern_confidence
-                          ? ` · ${analysis.narrative.pattern_confidence} confidence`
-                          : ""}
-                      </p>
-                      <p className="text-sm leading-relaxed text-ink">
-                        {analysis.narrative.possible_pattern}
-                      </p>
-                      {analysis.narrative.pattern_reasoning && (
-                        <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                          {analysis.narrative.pattern_reasoning}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <NarrativeField label="Caveats" value={analysis.narrative.caveats} />
-                </div>
-              </div>
-            )}
+            <Link
+              to="/history"
+              className="font-mono text-xs text-ink-faint transition-colors hover:text-ink"
+            >
+              ← All analyses
+            </Link>
           </aside>
         </div>
       )}
     </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-ink-faint">{label}</dt>
-      <dd className="text-ink tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-function NarrativeField({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
-  return (
-    <div>
-      <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-ink-faint">{label}</p>
-      <p className="text-sm leading-relaxed text-ink-muted">{value}</p>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: Analysis["status"] }) {
-  const styles: Record<Analysis["status"], string> = {
-    QUEUED: "border-ink-faint/40 text-ink-muted",
-    PROCESSING: "border-accent/40 text-accent",
-    COMPLETED: "border-accent/40 bg-accent-soft text-accent",
-    FAILED: "border-evidence/40 bg-evidence-soft text-evidence",
-  };
-
-  return (
-    <span
-      className={`shrink-0 rounded-sm border px-2.5 py-1 font-mono text-[11px] uppercase tracking-wide ${styles[status]}`}
-    >
-      {status}
-    </span>
   );
 }

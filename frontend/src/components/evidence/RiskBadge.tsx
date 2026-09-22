@@ -14,17 +14,22 @@ const STYLES: Record<RiskLevel, string> = {
   HIGH: "border-red-500/40 bg-red-500/10 text-red-400",
 };
 
+const SIZES: Record<"sm" | "md" | "lg", string> = {
+  sm: "px-2 py-0.5 text-[10px]",
+  md: "px-3 py-1 text-xs",
+  lg: "px-4 py-2 text-base tracking-[0.15em]",
+};
+
 export function RiskBadge({
   level,
   size = "md",
 }: {
   level: RiskLevel;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
-  const sizing = size === "sm" ? "px-2 py-0.5 text-[10px]" : "px-3 py-1 text-xs";
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-sm border font-mono font-medium uppercase tracking-wide ${sizing} ${STYLES[level]}`}
+      className={`inline-flex shrink-0 items-center rounded-sm border font-mono font-medium uppercase tracking-wide ${SIZES[size]} ${STYLES[level]}`}
     >
       {level}
     </span>

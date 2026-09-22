@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Spinner } from "./ui/Spinner";
 
 /**
  * Gate for routes that require a signed-in user. While the initial session is
@@ -15,8 +16,12 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-24 text-center font-mono text-sm text-ink-muted">
-        Restoring session…
+      <div
+        className="mx-auto flex max-w-2xl flex-col items-center gap-3 px-6 py-24"
+        aria-busy="true"
+      >
+        <Spinner />
+        <p className="font-mono text-sm text-ink-muted">Restoring session…</p>
       </div>
     );
   }
