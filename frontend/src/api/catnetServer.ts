@@ -15,7 +15,14 @@
  *
  * The CAT-Net and Gemini calls themselves are unchanged.
  */
-import { API_BASE_URL, ApiError, fetchBackendResourceAsBlob } from "./client";
+import {
+  API_BASE_URL,
+  ApiError,
+  CATNET_TIMEOUT_MS,
+  fetchBackendResourceAsBlob,
+  fetchWithTimeout,
+  isAbortError,
+} from "./client";
 import { requestNarrative } from "./narrative";
 import {
   createAnalysisRecord,
@@ -52,11 +59,31 @@ async function runPipeline(id: string, userId: string, file: File, originalImage
     update(id, { status: "PROCESSING", stage: "CATNET" });
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch(`${API_BASE_URL}/predict`, {
-      method: "POST",
-      body: formData,
-      headers: { "ngrok-skip-browser-warning": "true" },
-    });
+
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        `${API_BASE_URL}/predict`,
+        {
+          method: "POST",
+          body: formData,
+          headers: { "ngrok-skip-browser-warning": "true" },
+        },
+        CATNET_TIMEOUT_MS,
+      );
+    } catch (err) {
+      // A hang must become a reportable failure, not an analysis stuck in
+      // PROCESSING forever. Rethrowing lands in the outer catch, which marks
+      // the row FAILED with a sanitized message.
+      if (isAbortError(err)) {
+        throw new Error(
+          `The CAT-Net server did not respond within ${CATNET_TIMEOUT_MS / 1000} seconds. ` +
+            `It may be offline or overloaded.`,
+        );
+      }
+      throw err;
+    }
+
     if (!response.ok) throw new Error(`CAT-Net server returned ${response.status}`);
     const predictData: PredictResponse = await response.json();
 

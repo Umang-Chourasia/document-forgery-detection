@@ -20,6 +20,46 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Request timeouts for the analysis pipeline.
+ *
+ * Without these a hung backend leaves the pipeline waiting forever: the UI
+ * sits on a processing stage and the Supabase row stays PROCESSING with no
+ * way to recover. A timeout turns that into an ordinary, reportable failure.
+ *
+ * The values are generous because both calls are legitimately slow — CAT-Net
+ * inference takes seconds, and the narrative service waits on a language
+ * model whose latency varies widely (25s and >180s have both been observed
+ * for the same request). They are there to catch a hang, not to police
+ * normal slowness.
+ */
+export const CATNET_TIMEOUT_MS = 120_000;
+export const NARRATIVE_TIMEOUT_MS = 180_000;
+
+/** True when a fetch rejected because its AbortController fired. */
+export function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+/**
+ * fetch() with an AbortController-based deadline. Rejects with an AbortError
+ * on timeout; otherwise behaves exactly like fetch, so success paths are
+ * unchanged. The timer is always cleared, including on failure.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
 }
@@ -61,9 +101,25 @@ export async function apiFetch<T>(
 }
 
 /** Fetches a binary resource (e.g. a heatmap image) from the backend, with
- * the same ngrok-bypass header. */
+ * the same ngrok-bypass header. Shares the CAT-Net deadline: this hits the
+ * same server, so it can hang the pipeline in exactly the same way. */
 export async function fetchBackendResourceAsBlob(path: string): Promise<Blob> {
-  const response = await fetch(`${API_BASE_URL}${path}`, { headers: BACKEND_HEADERS });
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      `${API_BASE_URL}${path}`,
+      { headers: BACKEND_HEADERS },
+      CATNET_TIMEOUT_MS,
+    );
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw new ApiError(
+        `The CAT-Net server did not return the result within ${CATNET_TIMEOUT_MS / 1000} seconds.`,
+      );
+    }
+    throw err;
+  }
+
   if (!response.ok) {
     throw new ApiError(`Failed to fetch ${path} (${response.status})`, response.status);
   }

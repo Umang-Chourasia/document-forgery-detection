@@ -12,6 +12,7 @@
  * presented as interpretation or vice versa. A narrative failure does not
  * discard the metrics, and we never fabricate either one.
  */
+import { NARRATIVE_TIMEOUT_MS, fetchWithTimeout, isAbortError } from "./client";
 import type { EvidenceMetrics, NarrativeEvidence, TamperingRisk } from "../types/analysis";
 
 const NARRATIVE_BASE_URL = import.meta.env.VITE_NARRATIVE_BASE_URL;
@@ -49,10 +50,27 @@ export async function requestNarrative(
     formData.append("original", originalFile);
     formData.append("heatmap", heatmapBlob, "heatmap.png");
 
-    const response = await fetch(`${NARRATIVE_BASE_URL}/api/narrate`, {
-      method: "POST",
-      body: formData,
-    });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        `${NARRATIVE_BASE_URL}/api/narrate`,
+        { method: "POST", body: formData },
+        NARRATIVE_TIMEOUT_MS,
+      );
+    } catch (err) {
+      // A hung narrative call must not hold the whole analysis open. Returning
+      // an error here lets the pipeline finish and mark the analysis COMPLETED
+      // with the interpretation missing, rather than leaving it PROCESSING.
+      if (isAbortError(err)) {
+        return {
+          status: "error",
+          reason:
+            `The forensic analysis service did not respond within ` +
+            `${NARRATIVE_TIMEOUT_MS / 1000} seconds. The heatmap is unaffected.`,
+        };
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       const detail = await response
