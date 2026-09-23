@@ -44,12 +44,49 @@ Output format — this matters:
 - Write in SHORT BULLET POINTS, not paragraphs.
 - "what_the_analysis_shows": 2 to 4 points, each one short sentence,
   describing the detected evidence and where it appears. Measured facts only.
-- "interpretation": 2 to 4 points, each one short sentence, on what that
-  evidence could mean for a reviewer. No verdict.
+- "interpretation": EXACTLY ONE point. See below.
 - "confidence": 1 to 2 points on how much weight the evidence can carry and
   what would be needed to firm it up.
 - Each point is a plain sentence of roughly 10 to 25 words. No markdown, no
   leading bullet characters, no numbering, no headings inside a point.
+
+The "interpretation" section — the important part:
+The measured evidence names ONE region as significant_region, given as a
+normalized bounding box over the image: x and y are the top-left corner and
+width and height are the size, each as a fraction of the image from 0 to 1,
+with x increasing to the right and y increasing downwards. That box has
+already been selected for you.
+
+Interpret ONLY the document content underneath the specified
+most-significant highlighted region. Do not describe secondary highlighted
+regions, other warm patches, or other regions elsewhere in the document.
+
+Write EXACTLY ONE interpretation point:
+- Map the bounding box onto the ORIGINAL document image and look at what sits
+  inside it.
+- Say what that content is: a digit, a number, a date, a name, a word, an ID
+  field, a stamp, a signature, a photo, a symbol.
+- Give the field or context when you can see it, e.g. "The highlighted region
+  corresponds to a digit within the document number."
+- One sentence. Do not add a second point, and do not offer alternative
+  readings.
+- If significant_region is null, say that no single region stands out.
+
+NEVER INVENT DOCUMENT CONTENT. This is the hard rule.
+- Report a character, digit, word, name, date or field ONLY if you can
+  actually read it in the supplied original image.
+- If the region sits over content you cannot read reliably — too small, too
+  blurred, too low-resolution, obscured by the overlay — then say exactly
+  that, for example: "The highlighted region overlaps text that cannot be
+  read reliably from the available image."
+- Never guess a plausible-looking value. An honest "cannot be read reliably"
+  is always correct; a fabricated digit, name, number, date or address is
+  never acceptable.
+- If the region falls on a blank area, a border, a background or a photo
+  rather than readable content, say that instead.
+- When the content cannot be made out, the single interpretation point is:
+  "The highlighted region overlaps document content that cannot be identified
+  reliably from the available image."
 
 Rules:
 - Never declare the document "fake", "forged", "authentic", "genuine", or
@@ -60,11 +97,6 @@ Rules:
 - Never name or allude to the underlying model, architecture, service or
   implementation. Use neutral wording: the analysis, detected evidence,
   localized regions, measured intensity, image evidence.
-- When the evidence supports it, you may name a POSSIBLE manipulation
-  pattern (copy-move, splicing, text or region replacement, compositing, or
-  uncertain), phrased as an estimate — "consistent with a possible splice",
-  never "this is a splice". If the evidence does not support naming one, use
-  "uncertain".
 - If nothing meaningful is detected, say so plainly and do not speculate.`;
 
 /**
@@ -75,6 +107,8 @@ Rules:
  * pattern_reasoning) as the primary output. Those fields are no longer
  * requested, but the UI still renders them when an analysis stored under the
  * old format is reopened, so history keeps working without a migration.
+ * `caveats`, `possible_pattern` and `pattern_confidence` are likewise no
+ * longer requested, validated or rendered.
  */
 const NARRATIVE_SCHEMA = {
   type: "object",
@@ -88,8 +122,12 @@ const NARRATIVE_SCHEMA = {
     interpretation: {
       type: "array",
       items: { type: "string" },
+      minItems: 1,
+      maxItems: 1,
       description:
-        "2-4 short points on what the evidence could mean for a reviewer. No verdict.",
+        "EXACTLY ONE point naming the document content beneath the supplied " +
+        "significant_region bounding box, or stating that it cannot be " +
+        "identified reliably. No other region. No verdict.",
     },
     confidence: {
       type: "array",
@@ -97,21 +135,8 @@ const NARRATIVE_SCHEMA = {
       description:
         "1-2 short points on how much weight this evidence can carry and what would firm it up.",
     },
-    possible_pattern: {
-      type: "string",
-      enum: ["copy-move", "splicing", "text-replacement", "compositing", "uncertain"],
-    },
-    pattern_confidence: { type: "string", enum: ["low", "medium", "high"] },
-    caveats: { type: "string", description: "Limits of this interpretation, one sentence." },
   },
-  required: [
-    "what_the_analysis_shows",
-    "interpretation",
-    "confidence",
-    "possible_pattern",
-    "pattern_confidence",
-    "caveats",
-  ],
+  required: ["what_the_analysis_shows", "interpretation", "confidence"],
 };
 
 /** Field name -> expected shape, for validating the model's response. */
@@ -147,6 +172,19 @@ function buildEvidencePrompt(metrics, risk) {
         largest_region_share_of_flagged_area: +(metrics.largestRegionShare * 100).toFixed(1),
         intensity_histogram_10_bands: metrics.intensityHistogram,
         evidence_threshold: metrics.evidenceThreshold,
+        strong_evidence_threshold: metrics.strongIntensityThreshold,
+        strong_evidence_area_percent:
+          metrics.strongAreaFraction != null
+            ? +(metrics.strongAreaFraction * 100).toFixed(3)
+            : undefined,
+        strong_region_count: metrics.strongRegionCount,
+        largest_strong_region_percent_of_image:
+          metrics.strongLargestRegionFraction != null
+            ? +(metrics.strongLargestRegionFraction * 100).toFixed(3)
+            : undefined,
+        // The one region to interpret, already chosen. Normalized to the
+        // image so it is independent of the rendered resolution.
+        significant_region: metrics.significantRegionBounds ?? null,
         weighted_evidence_score: risk.score,
       },
       null,
@@ -168,8 +206,15 @@ function buildEvidencePrompt(metrics, risk) {
     "",
     "The score is an internal weighting of the measurements above. It is not a " +
       "probability, not a confidence value, and not an output of the analysis " +
-      "itself. Never mention the score, the weights or the thresholds in your " +
-      "response — they are internal to the application.",
+      "itself. Never mention the score, the weights, the thresholds or the " +
+      "internal rule name in your response — they are internal to the " +
+      "application.",
+    "",
+    "significant_region above is the ONLY region to interpret. Map that " +
+      "normalized box onto the original document, report what content sits " +
+      "inside it in exactly one sentence, or say plainly that it cannot be " +
+      "identified reliably. Do not invent it, and do not describe any other " +
+      "highlighted region.",
     "",
     "Explain this evidence for the reviewer, in short bullet points, using the " +
       "required fields. The risk level is already decided; do not re-decide it.",

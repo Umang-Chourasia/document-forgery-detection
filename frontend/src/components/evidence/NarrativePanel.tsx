@@ -10,8 +10,12 @@ import type { NarrativeEvidence } from "../../types/analysis";
  * already-decided risk level; it does not choose it, and nothing in this
  * panel restates the level as a conclusion of its own.
  *
+ * Exactly three sections are rendered — what the analysis shows, the
+ * interpretation of the single most significant region, and confidence — and
+ * nothing else.
+ *
  * Two shapes are supported. Current analyses carry point-wise arrays and are
- * rendered as three short sections. Analyses stored before that format carry
+ * rendered as those three short sections. Analyses stored before that format carry
  * prose fields, and fall back to the previous rendering so history keeps
  * working without a migration.
  */
@@ -47,15 +51,7 @@ export function NarrativePanel({ narrative }: { narrative: NarrativeEvidence }) 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Section title="What the analysis shows" items={points.shows} />
           <Section title="Interpretation" items={points.interpretation} />
-          <Section title="Confidence" items={points.confidence}>
-            {narrative.possible_pattern && (
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-                Possible pattern:{" "}
-                <span className="text-ink">{narrative.possible_pattern}</span>
-                {narrative.pattern_confidence ? ` · ${narrative.pattern_confidence}` : ""}
-              </p>
-            )}
-          </Section>
+          <Section title="Confidence" items={points.confidence} />
         </div>
       ) : (
         /* Legacy prose form, for analyses stored before the point-wise format. */
@@ -63,41 +59,14 @@ export function NarrativePanel({ narrative }: { narrative: NarrativeEvidence }) 
           <Prose label="What the analysis shows" value={narrative.observed_evidence} />
           <Prose label="Where" value={narrative.location_description} />
           <Prose label="What it means" value={narrative.plain_language_meaning} />
-          {narrative.possible_pattern && (
-            <Prose
-              label={`Possible pattern${
-                narrative.pattern_confidence
-                  ? ` · ${narrative.pattern_confidence} confidence`
-                  : ""
-              }`}
-              value={`${narrative.possible_pattern}${
-                narrative.pattern_reasoning ? ` — ${narrative.pattern_reasoning}` : ""
-              }`}
-            />
-          )}
         </div>
-      )}
-
-      {narrative.caveats && (
-        <p className="mt-6 border-t border-interpretation/20 pt-4 text-xs leading-relaxed text-ink-faint">
-          <span className="font-mono uppercase tracking-wide">Caveats · </span>
-          {narrative.caveats}
-        </p>
       )}
     </Card>
   );
 }
 
-function Section({
-  title,
-  items,
-  children,
-}: {
-  title: string;
-  items: string[];
-  children?: React.ReactNode;
-}) {
-  if (items.length === 0 && !children) return null;
+function Section({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
   return (
     <div>
       <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-interpretation">
@@ -111,7 +80,6 @@ function Section({
           </li>
         ))}
       </ul>
-      {children}
     </div>
   );
 }

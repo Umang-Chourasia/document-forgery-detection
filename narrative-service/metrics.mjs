@@ -102,23 +102,39 @@ function makeIntensityResolver() {
 
 /** A pixel counts as evidence at or above this intensity. */
 export const EVIDENCE_THRESHOLD = 0.5;
+/**
+ * A pixel counts as STRONG evidence at or above this intensity — the warm
+ * red end of the heatmap. Strong evidence is tracked separately, with its own
+ * connected-region analysis, because a small but unambiguous forgery (a single
+ * altered digit, say) produces a tiny strong region that the overall
+ * evidence area barely registers.
+ */
+export const STRONG_INTENSITY = 0.8;
 /** Regions smaller than this fraction of the image are treated as speckle. */
 const MIN_REGION_FRACTION = 0.0002;
 
 /**
- * Labels connected evidence regions with 8-connectivity, iteratively (an
- * explicit stack, because recursion would overflow on a large contiguous
- * region). Returns region areas in pixels, largest first.
+ * Labels connected regions with 8-connectivity, iteratively (an explicit
+ * stack, because recursion would overflow on a large contiguous region).
+ * Returns { area, minX, minY, maxX, maxY } per region, largest first.
+ *
+ * The bounds are accumulated in the same traversal that counts the area, so
+ * locating a region costs nothing extra and there is only ever one
+ * region-finding algorithm in this file.
  */
-function connectedRegionAreas(mask, width, height) {
+function connectedRegions(mask, width, height) {
   const visited = new Uint8Array(mask.length);
-  const areas = [];
+  const regions = [];
   const stack = [];
 
   for (let start = 0; start < mask.length; start++) {
     if (!mask[start] || visited[start]) continue;
 
     let area = 0;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
     stack.push(start);
     visited[start] = 1;
 
@@ -127,6 +143,11 @@ function connectedRegionAreas(mask, width, height) {
       area++;
       const x = index % width;
       const y = (index - x) / width;
+
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
 
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -142,10 +163,25 @@ function connectedRegionAreas(mask, width, height) {
         }
       }
     }
-    areas.push(area);
+    regions.push({ area, minX, minY, maxX, maxY });
   }
 
-  return areas.sort((a, b) => b - a);
+  return regions.sort((a, b) => b.area - a.area);
+}
+
+/**
+ * Normalized bounding box of a labelled region, as fractions of the image.
+ * Resolution-independent, so it stays valid whatever size the heatmap was
+ * rendered at. `maxX`/`maxY` are inclusive pixel indices, hence the +1.
+ */
+function normalizedBounds(region, width, height) {
+  if (!region) return null;
+  return {
+    x: round(region.minX / width),
+    y: round(region.minY / height),
+    width: round((region.maxX - region.minX + 1) / width),
+    height: round((region.maxY - region.minY + 1) / height),
+  };
 }
 
 function round(value, places = 6) {
@@ -172,6 +208,7 @@ export function computeHeatmapMetrics(pngBuffer) {
 
   const resolve = makeIntensityResolver();
   const mask = new Uint8Array(pixelCount);
+  const strongMask = new Uint8Array(pixelCount);
 
   // Histogram over ten fixed 0.1-wide intensity bands.
   const histogram = new Array(10).fill(0);
@@ -179,6 +216,7 @@ export function computeHeatmapMetrics(pngBuffer) {
   let intensitySum = 0;
   let evidenceIntensitySum = 0;
   let evidenceCount = 0;
+  let strongCount = 0;
   let maxIntensity = 0;
 
   for (let i = 0; i < pixelCount; i++) {
@@ -200,13 +238,33 @@ export function computeHeatmapMetrics(pngBuffer) {
       mask[i] = 1;
       evidenceCount++;
       evidenceIntensitySum += intensity;
+
+      if (intensity >= STRONG_INTENSITY) {
+        strongMask[i] = 1;
+        strongCount++;
+      }
     }
   }
 
   const evidenceAreaFraction = evidenceCount / pixelCount;
-  const regionAreas = evidenceCount > 0 ? connectedRegionAreas(mask, width, height) : [];
-  const significantRegions = regionAreas.filter((a) => a / pixelCount >= MIN_REGION_FRACTION);
-  const largestRegionArea = regionAreas.length > 0 ? regionAreas[0] : 0;
+  const regions = evidenceCount > 0 ? connectedRegions(mask, width, height) : [];
+  const significantRegions = regions.filter((r) => r.area / pixelCount >= MIN_REGION_FRACTION);
+  const largestRegionArea = regions.length > 0 ? regions[0].area : 0;
+
+  // Same 8-connectivity labelling, run over the strong-evidence mask. This is
+  // what separates a coherent red blob from scattered hot pixels: area alone
+  // cannot tell those apart.
+  const strongRegions = strongCount > 0 ? connectedRegions(strongMask, width, height) : [];
+  const strongSignificant = strongRegions.filter((r) => r.area / pixelCount >= MIN_REGION_FRACTION);
+  const strongLargest = strongRegions.length > 0 ? strongRegions[0] : null;
+  const strongLargestArea = strongLargest ? strongLargest.area : 0;
+
+  // The single most significant region: the largest connected component of
+  // the strong mask — by construction the same region the HIGH rule tests,
+  // since that rule reads strongLargestRegionFraction. Selected here once so
+  // the narrative layer interprets exactly the region the rule acted on,
+  // rather than picking one by eye.
+  const significantRegionBounds = normalizedBounds(strongLargest, width, height);
 
   return {
     // Source and method, so a reader can see where these numbers came from.
@@ -231,6 +289,15 @@ export function computeHeatmapMetrics(pngBuffer) {
     // Of everything flagged, how much sits in the single biggest region.
     // Near 1 means one coherent area; near 0 means scattered speckle.
     largestRegionShare: evidenceCount > 0 ? round(largestRegionArea / evidenceCount) : 0,
+
+    // Strong (red) evidence, measured and labelled independently of the above.
+    strongIntensityThreshold: STRONG_INTENSITY,
+    strongAreaFraction: round(strongCount / pixelCount),
+    strongPixelCount: strongCount,
+    strongRegionCount: strongSignificant.length,
+    strongLargestRegionFraction: round(strongLargestArea / pixelCount),
+    /** Normalized bounds of that largest strong region, or null if none. */
+    significantRegionBounds,
   };
 }
 
@@ -309,6 +376,17 @@ export const RISK_RULES = {
   highMinArea: 0.005, // 0.5%
   /** ...and at least this much of it in one coherent region. */
   highMinRegion: 0.002, // 0.2%
+
+  // --- Strong-evidence override (G0) ---
+  /**
+   * A single connected region at or above STRONG_INTENSITY covering at least
+   * this much of the image is HIGH on its own, whatever the overall extent.
+   * Set to the same floor the weighted rule already uses for a real region,
+   * so "not speckle" means one thing throughout. At a typical 581x431
+   * heatmap this is ~125 px — comfortably larger than noise, comfortably
+   * smaller than the blob over a single altered character.
+   */
+  strongMinRegion: 0.0005, // 0.05%
 };
 
 /**
@@ -479,6 +557,40 @@ export function classifyTamperingRisk(metrics) {
     `${pct(evidenceAreaFraction)} of the document across ${regionCount} region(s), ` +
     `the largest holding ${pct(largestRegionShare, 0)} of the detected evidence ` +
     `(${pct(largestRegionFraction)} of the document).`;
+
+  // --- G0: strong localized evidence is HIGH on its own. ---
+  //
+  // The weighted score is dominated by how much of the document is affected,
+  // which is the wrong instinct for document forgery: altering one digit
+  // produces an unmistakable red region covering a fraction of a percent of
+  // the page. A coherent region at or above the strong-intensity threshold
+  // therefore decides HIGH directly, and extent cannot downgrade it.
+  //
+  // It is the REGION, not the peak, that qualifies: strongLargestRegionFraction
+  // comes from connected-component labelling of the strong mask, so an
+  // isolated hot pixel or scattered speckle can never satisfy it however high
+  // the peak reads.
+  const strongLargestRegionFraction = Number(metrics.strongLargestRegionFraction) || 0;
+  const strongAreaFraction = Number(metrics.strongAreaFraction) || 0;
+  const strongRegionCount = Number(metrics.strongRegionCount) || 0;
+
+  if (strongLargestRegionFraction >= RISK_RULES.strongMinRegion) {
+    return {
+      level: "HIGH",
+      rule: "strong_localized_region",
+      rationale:
+        `A coherent region of strong evidence covers ${pct(strongLargestRegionFraction)} ` +
+        `of the document, with peak measured intensity ${maxIntensity.toFixed(2)}. ` +
+        `Strong localized evidence, regardless of how little of the document it occupies.`,
+      score,
+      inputs: {
+        ...inputs,
+        strongAreaFraction,
+        strongLargestRegionFraction,
+        strongRegionCount,
+      },
+    };
+  }
 
   // --- G2: HIGH needs the score AND real spatial support. ---
   const meetsHighScore = score >= RISK_RULES.highScore;

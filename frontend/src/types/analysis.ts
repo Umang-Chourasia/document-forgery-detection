@@ -82,12 +82,6 @@ export interface NarrativeEvidence {
   observed_evidence?: string;
   location_description?: string;
   plain_language_meaning?: string;
-  pattern_reasoning?: string;
-
-  /** Still produced and still rendered, in both formats. */
-  possible_pattern?: string;
-  pattern_confidence?: string;
-  caveats?: string;
 }
 
 export interface AnalysisPage {
