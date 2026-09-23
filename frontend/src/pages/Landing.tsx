@@ -16,24 +16,6 @@ const CAPABILITIES = [
   },
 ];
 
-const PIPELINE = [
-  {
-    step: "01",
-    label: "Localization",
-    body: "The document is analyzed to identify regions showing unusual visual evidence, returned as a heatmap.",
-  },
-  {
-    step: "02",
-    label: "Measurement",
-    body: "Quantitative measurements are calculated from the detected evidence, and a fixed rule assigns a tampering risk level.",
-  },
-  {
-    step: "03",
-    label: "Interpretation",
-    body: "A language model explains the measured evidence in plain language. It never decides the risk level.",
-  },
-];
-
 export function Landing() {
   const { session } = useAuth();
 
@@ -73,26 +55,6 @@ export function Landing() {
             <p className="text-sm leading-relaxed text-ink-muted">{cap.body}</p>
           </div>
         ))}
-      </section>
-
-      <section className="py-20">
-        <p className="mb-8 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
-          How it works
-        </p>
-        <ol className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {PIPELINE.map((item) => (
-            <li
-              key={item.step}
-              className="rounded-sm border border-border bg-surface p-6"
-            >
-              <p className="mb-3 font-mono text-2xl text-accent/40">{item.step}</p>
-              <h3 className="mb-2 font-mono text-xs uppercase tracking-wide text-ink">
-                {item.label}
-              </h3>
-              <p className="text-sm leading-relaxed text-ink-muted">{item.body}</p>
-            </li>
-          ))}
-        </ol>
       </section>
 
       <footer className="border-t border-border py-10 text-center font-mono text-xs text-ink-faint">
