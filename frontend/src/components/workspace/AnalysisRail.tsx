@@ -39,7 +39,15 @@ export function AnalysisRail() {
     <div className="flex flex-col">
       {analysis.risk && <RiskCard risk={analysis.risk} />}
 
-      {processing && !analysis.risk && <ProcessingStatus stage={analysis.stage} />}
+      {processing && !analysis.risk && (
+        <ProcessingStatus
+          stage={analysis.stage}
+          // The heatmap URL is empty until catnetServer fetches the result and
+          // patches `pages` — the same signal the stage uses to decide whether
+          // to show the document, so the two can never disagree.
+          hasEvidenceMap={Boolean(analysis.pages[0]?.catnet.heatmapUrl)}
+        />
+      )}
 
       {analysis.status === "FAILED" && (
         <div className="pb-7">
@@ -81,30 +89,79 @@ export function AnalysisRail() {
   );
 }
 
-/** Stage captions, matching the pipeline's own stage identifiers. */
+/** Captions for the stages that run before the evidence map exists. */
 const STAGE_COPY: Record<string, string> = {
   UPLOAD: "Storing the document",
   PREPROCESSING: "Preparing the document",
   CATNET: "Analyzing evidence",
-  NARRATIVE: "Measuring and interpreting",
-  REPORT: "Assembling the result",
 };
 
-function ProcessingStatus({ stage }: { stage?: string }) {
+/**
+ * The run has two phases a reviewer can actually see, so it reads as two.
+ *
+ * Until the heatmap exists the document is genuinely still being analyzed.
+ * Once it exists the evidence is on screen and only the written
+ * interpretation is outstanding — saying "processing document" then would
+ * contradict what the reviewer is already looking at.
+ *
+ * Both phases are derived from existing state; no new status was added.
+ */
+function ProcessingStatus({
+  stage,
+  hasEvidenceMap,
+}: {
+  stage?: string;
+  hasEvidenceMap: boolean;
+}) {
+  if (!hasEvidenceMap) {
+    return (
+      <section className="pb-7" aria-live="polite">
+        <h2 className="label mb-4 text-ink-faint">Analysis</h2>
+        <p className="flex items-center gap-2.5 text-body text-ink">
+          <Pulse />
+          Processing document
+        </p>
+        <p className="mt-2 text-small leading-relaxed text-ink-muted">
+          {(stage && STAGE_COPY[stage]) ?? "Analyzing evidence"}…
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="pb-7" aria-live="polite">
       <h2 className="label mb-4 text-ink-faint">Analysis</h2>
-      <p className="flex items-center gap-2.5 text-body text-ink">
-        <span
-          aria-hidden="true"
-          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
-        />
-        Processing document
+
+      <p className="label flex items-center gap-2.5 text-accent">
+        <Tick />
+        Evidence map ready
       </p>
       <p className="mt-2 text-small leading-relaxed text-ink-muted">
-        {(stage && STAGE_COPY[stage]) ?? "Analyzing evidence"}…
+        Heatmap generated successfully.
+      </p>
+
+      <p className="mt-5 flex items-center gap-2.5 text-body text-ink">
+        <Pulse />
+        Generating interpretation…
       </p>
     </section>
+  );
+}
+
+function Pulse() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+    />
+  );
+}
+
+function Tick() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" aria-hidden="true" className="h-2.5 w-2.5 shrink-0">
+      <path d="M2 6.4L4.6 9 10 3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
