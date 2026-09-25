@@ -12,9 +12,6 @@ interface StageControlsProps {
   onReset: () => void;
   opacity: number;
   setOpacity: (v: number) => void;
-  hasRegion: boolean;
-  showRegion: boolean;
-  setShowRegion: (v: boolean) => void;
 }
 
 const MODES: { key: ViewMode; short: string; label: string }[] = [
@@ -35,7 +32,7 @@ const MODES: { key: ViewMode; short: string; label: string }[] = [
 export function StageControls({
   mode, setMode, modesEnabled,
   zoom, canZoomIn, canZoomOut, onZoomIn, onZoomOut, onReset,
-  opacity, setOpacity, hasRegion, showRegion, setShowRegion,
+  opacity, setOpacity,
 }: StageControlsProps) {
   return (
     <div className="pointer-events-none absolute right-4 top-4 z-10 flex flex-col items-end gap-2">
@@ -53,11 +50,19 @@ export function StageControls({
             <path d="M3.5 8h9" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
           </svg>
         </IconButton>
-        <IconButton label="Fit to view" onClick={onReset}>
+        <IconButton label="Reset view" onClick={onReset}>
+          {/* A circular arrow around a fitted frame: returns the document to
+              its default fit. Deliberately not the corner brackets, which read
+              as fullscreen — there is no fullscreen here. */}
           <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+            <rect x="5.5" y="5.5" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
             <path
-              d="M6 2.5H2.5V6M10 2.5h3.5V6M6 13.5H2.5V10M10 13.5h3.5V10"
-              stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"
+              d="M13.2 6.6A5.5 5.5 0 0 0 3.4 4.6M2.8 9.4a5.5 5.5 0 0 0 9.8 2"
+              stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"
+            />
+            <path
+              d="M3.5 1.9v2.8h2.8M12.5 14.1v-2.8H9.7"
+              stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
             />
           </svg>
         </IconButton>
@@ -102,21 +107,6 @@ export function StageControls({
           <span className="label mt-2 tabular-nums text-ink-muted">
             {Math.round(opacity * 100)}
           </span>
-        </Cluster>
-      )}
-
-      {hasRegion && (
-        <Cluster>
-          <button
-            onClick={() => setShowRegion(!showRegion)}
-            aria-pressed={showRegion}
-            title="Significant region"
-            className={`label px-1 py-1.5 transition-colors ${
-              showRegion ? "text-accent" : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            RG
-          </button>
         </Cluster>
       )}
     </div>

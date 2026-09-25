@@ -9,31 +9,26 @@ import type { NarrativeEvidence } from "../../types/analysis";
  * the deterministic evidence beside it. The model explains the already-decided
  * risk level; it does not choose it.
  *
- * Exactly three sections are rendered — what the analysis shows, the
- * interpretation of the single most significant region, and confidence — and
- * nothing else. In the rail they stack rather than sit in columns.
+ * Two sections are rendered — what the analysis shows, and the
+ * interpretation of the single most significant region. The service also
+ * returns a confidence field; it is deliberately not presented, and the
+ * contract is unchanged.
  *
  * Two shapes are supported. Current analyses carry point-wise arrays;
  * analyses stored before that format carry prose fields and fall back to the
  * previous rendering, so history keeps working without a migration.
  */
 export function NarrativePanel({ narrative }: { narrative: NarrativeEvidence }) {
+  // `confidence` is still returned by the service and still part of the
+  // contract; it is simply not presented. Nothing is removed from the API.
   const points = {
     shows: narrative.what_the_analysis_shows ?? [],
     interpretation: narrative.interpretation ?? [],
-    confidence: narrative.confidence ?? [],
   };
-  const hasPoints =
-    points.shows.length > 0 ||
-    points.interpretation.length > 0 ||
-    points.confidence.length > 0;
+  const hasPoints = points.shows.length > 0 || points.interpretation.length > 0;
 
   return (
-    <Collapsible
-      title="Interpretation"
-      titleClass="text-interpretation"
-      right={<span className="label text-ink-faint">Model-written</span>}
-    >
+    <Collapsible title="Interpretation" titleClass="text-interpretation">
       <p className="mb-5 text-small leading-relaxed text-ink-faint">
         Generated from the measured evidence. Interpretation, not measurement.
       </p>
@@ -46,7 +41,6 @@ export function NarrativePanel({ narrative }: { narrative: NarrativeEvidence }) 
         <div className="flex flex-col gap-5">
           <Section title="What the analysis shows" items={points.shows} />
           <Section title="Interpretation" items={points.interpretation} />
-          <Section title="Confidence" items={points.confidence} />
         </div>
       ) : (
         /* Legacy prose form, for analyses stored before the point-wise format. */

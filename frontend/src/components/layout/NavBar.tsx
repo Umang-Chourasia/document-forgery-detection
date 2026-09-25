@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { AccountMenu } from "./AccountMenu";
 import { DocumentIdentity } from "./DocumentIdentity";
 
 /**
@@ -27,15 +28,6 @@ export function NavBar() {
     navigate("/", { replace: true });
   };
 
-  // Both workspace links share the /w path, so the active one is decided by
-  // the pane in the query string rather than by the path alone.
-  const inWorkspace = location.pathname.startsWith("/w");
-  const historyPane = new URLSearchParams(location.search).get("pane") === "history";
-  const navLink = (active: boolean) =>
-    `border-b pb-1 transition-colors ${
-      active ? "border-accent text-ink" : "border-transparent text-ink-muted hover:text-ink"
-    }`;
-
   return (
     <header className="sticky top-0 z-20 border-b border-hairline bg-canvas/95 backdrop-blur">
       <div className="mx-auto flex h-[4.25rem] max-w-[100rem] items-center justify-between px-6 lg:px-10">
@@ -56,23 +48,9 @@ export function NavBar() {
 
         {loading ? null : session ? (
           <>
-            <nav className="label hidden items-center gap-8 md:flex">
-              <Link to="/w" className={navLink(inWorkspace && !historyPane)}>
-                Analysis
-              </Link>
-              <Link to="/w?pane=history" className={navLink(inWorkspace && historyPane)}>
-                History
-              </Link>
-              <span className="hidden max-w-[200px] truncate text-ink-faint lg:inline">
-                {user?.email}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="text-ink-muted transition-colors hover:text-ink"
-              >
-                Sign Out
-              </button>
-            </nav>
+            <div className="hidden md:flex">
+              <AccountMenu email={user?.email ?? ""} onSignOut={handleSignOut} />
+            </div>
 
             <button
               onClick={() => setMenuOpen((open) => !open)}
@@ -115,7 +93,9 @@ export function NavBar() {
             History
           </Link>
           {user?.email && (
-            <span className="truncate py-4 text-ink-faint">{user.email}</span>
+            <span className="truncate py-4 text-ink-faint" title={user.email}>
+              {user.email}
+            </span>
           )}
           <button
             onClick={handleSignOut}

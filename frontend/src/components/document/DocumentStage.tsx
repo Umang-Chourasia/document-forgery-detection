@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { RegionFocus } from "./RegionFocus";
 import { StageControls } from "./StageControls";
-import type { AnalysisPage, RegionBounds } from "../../types/analysis";
+import type { AnalysisPage } from "../../types/analysis";
 
 export type ViewMode = "original" | "heatmap" | "overlay" | "split";
 
 interface DocumentStageProps {
   page: AnalysisPage;
-  /** Bounds of the dominant strong region, when the analysis recorded them. */
-  significantRegion?: RegionBounds | null;
 }
 
 const ZOOM_STEPS = [1, 1.5, 2, 3, 4];
@@ -45,11 +42,10 @@ interface Size {
  * is no such height, so it is derived from the document's aspect — otherwise
  * a wide document leaves a tall band of dead canvas on a phone.
  */
-export function DocumentStage({ page, significantRegion }: DocumentStageProps) {
+export function DocumentStage({ page }: DocumentStageProps) {
   const [mode, setMode] = useState<ViewMode>("overlay");
   const [zoomIndex, setZoomIndex] = useState(0);
   const [opacity, setOpacity] = useState(0.65);
-  const [showRegion, setShowRegion] = useState(true);
   const [originalSize, setOriginalSize] = useState<Size | null>(null);
   const [heatmapSize, setHeatmapSize] = useState<Size | null>(null);
   const [heatmapFailed, setHeatmapFailed] = useState(false);
@@ -199,12 +195,6 @@ export function DocumentStage({ page, significantRegion }: DocumentStageProps) {
     />
   ) : null;
 
-  // The marker is drawn against the heatmap's painted rect. Where the two
-  // aspects disagree beyond the tolerance the overlay is already only
-  // approximate, so the marker is withheld rather than placed misleadingly.
-  const canMark =
-    showRegion && !isSplit && !!significantRegion && !!heatmapAspect && !aspectMismatch;
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="relative min-h-0 flex-1">
@@ -220,9 +210,6 @@ export function DocumentStage({ page, significantRegion }: DocumentStageProps) {
           onReset={reset}
           opacity={opacity}
           setOpacity={setOpacity}
-          hasRegion={Boolean(significantRegion) && !aspectMismatch}
-          showRegion={showRegion}
-          setShowRegion={setShowRegion}
         />
 
         <div
@@ -259,14 +246,6 @@ export function DocumentStage({ page, significantRegion }: DocumentStageProps) {
                 >
                   {heatmapImg}
                 </div>
-              )}
-              {canMark && (
-                <RegionFocus
-                  bounds={significantRegion!}
-                  paneWidth={paneWidth}
-                  paneHeight={paneHeight}
-                  heatmapAspect={heatmapAspect!}
-                />
               )}
             </div>
           )}

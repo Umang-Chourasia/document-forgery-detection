@@ -20,7 +20,7 @@ export function WorkspaceRail() {
   return (
     <div className="flex h-full min-h-0 flex-col px-6 lg:px-8">
       <PaneSwitch />
-      <div className="max-h-[46svh] min-h-0 flex-1 overflow-y-auto py-6 lg:max-h-none">
+      <div className="scroll-quiet max-h-[46svh] min-h-0 flex-1 overflow-y-auto py-6 pr-1 lg:max-h-none">
         {pane === "history" ? <HistoryPane /> : <AnalysisRail />}
       </div>
     </div>

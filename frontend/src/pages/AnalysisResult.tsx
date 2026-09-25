@@ -68,10 +68,8 @@ export function AnalysisResult() {
 
   if (!page) return null;
 
-  return (
-    <DocumentStage
-      page={page}
-      significantRegion={analysis.metrics?.significantRegionBounds}
-    />
-  );
+  // `metrics.significantRegionBounds` is still computed, still persisted and
+  // still drives the interpretation — it is simply no longer drawn over the
+  // document.
+  return <DocumentStage page={page} />;
 }

@@ -39,12 +39,7 @@ export function AnalysisRail() {
     <div className="flex flex-col">
       {analysis.risk && <RiskCard risk={analysis.risk} />}
 
-      {processing && !analysis.risk && (
-        <p className="pb-7 text-small leading-relaxed text-ink-muted">
-          Analyzing the document. The reading appears here as each stage
-          completes.
-        </p>
-      )}
+      {processing && !analysis.risk && <ProcessingStatus stage={analysis.stage} />}
 
       {analysis.status === "FAILED" && (
         <div className="pb-7">
@@ -83,6 +78,33 @@ export function AnalysisRail() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Stage captions, matching the pipeline's own stage identifiers. */
+const STAGE_COPY: Record<string, string> = {
+  UPLOAD: "Storing the document",
+  PREPROCESSING: "Preparing the document",
+  CATNET: "Analyzing evidence",
+  NARRATIVE: "Measuring and interpreting",
+  REPORT: "Assembling the result",
+};
+
+function ProcessingStatus({ stage }: { stage?: string }) {
+  return (
+    <section className="pb-7" aria-live="polite">
+      <h2 className="label mb-4 text-ink-faint">Analysis</h2>
+      <p className="flex items-center gap-2.5 text-body text-ink">
+        <span
+          aria-hidden="true"
+          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+        />
+        Processing document
+      </p>
+      <p className="mt-2 text-small leading-relaxed text-ink-muted">
+        {(stage && STAGE_COPY[stage]) ?? "Analyzing evidence"}…
+      </p>
+    </section>
   );
 }
 
