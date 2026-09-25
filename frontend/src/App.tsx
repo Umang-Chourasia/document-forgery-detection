@@ -1,14 +1,18 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/layout/Layout";
+import { Workspace } from "./components/layout/Workspace";
 import { AuthProvider } from "./contexts/AuthContext";
-import { Analyze } from "./pages/Analyze";
-import { AnalysisResult } from "./pages/AnalysisResult";
-import { History } from "./pages/History";
 import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
 import { NotFound } from "./pages/NotFound";
 import { Signup } from "./pages/Signup";
+
+/** Keeps `/analysis/:id` deep links working by forwarding the id to `/w/:id`. */
+function AnalysisRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/w/${id}` : "/w"} replace />;
+}
 
 function App() {
   return (
@@ -23,9 +27,14 @@ function App() {
 
             {/* Protected — RLS is the real enforcement; this is the UX guard. */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/analyze" element={<Analyze />} />
-              <Route path="/analysis/:id" element={<AnalysisResult />} />
-              <Route path="/history" element={<History />} />
+              <Route path="/w" element={<Workspace />} />
+              <Route path="/w/:id" element={<Workspace />} />
+
+              {/* The previous routes are kept as redirects: existing links,
+                  bookmarks and the post-login `from` target all still work. */}
+              <Route path="/analyze" element={<Navigate to="/w" replace />} />
+              <Route path="/history" element={<Navigate to="/w?pane=history" replace />} />
+              <Route path="/analysis/:id" element={<AnalysisRedirect />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

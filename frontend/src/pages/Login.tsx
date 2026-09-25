@@ -4,7 +4,6 @@ import { supabase } from "../api/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { AuthShell } from "../components/layout/AuthShell";
 import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Input";
 
 export function Login() {
@@ -45,7 +44,7 @@ export function Login() {
 
   return (
     <AuthShell eyebrow="Sign in" title="Welcome back">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-7">
         <Field
           id="login-email"
           label="Email"
@@ -67,19 +66,19 @@ export function Login() {
         />
 
         {error && (
-          <Card tone="evidence" className="px-3 py-2">
-            <p className="text-sm text-evidence">{error}</p>
-          </Card>
+          <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+            {error}
+          </p>
         )}
 
-        <Button type="submit" disabled={submitting} size="lg" className="mt-2 w-full">
+        <Button type="submit" disabled={submitting} size="lg" className="mt-4 w-full">
           {submitting ? "Signing in…" : "Sign In"}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-muted">
+      <p className="mt-10 border-t border-hairline pt-6 text-small text-ink-muted">
         Don't have an account?{" "}
-        <Link to="/signup" className="text-accent hover:underline">
+        <Link to="/signup" className="text-accent transition-colors hover:text-ink">
           Create one
         </Link>
       </p>

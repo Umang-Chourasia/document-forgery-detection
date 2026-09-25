@@ -9,7 +9,6 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { AuthShell } from "../components/layout/AuthShell";
 import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Input";
 
 export function Signup() {
@@ -75,7 +74,7 @@ export function Signup() {
 
   return (
     <AuthShell eyebrow="Create account" title="Get started">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-7">
         <Field
           id="signup-email"
           label="Email"
@@ -100,39 +99,39 @@ export function Signup() {
 
         {/* Consent block. The text itself is the consent record and is
             rendered verbatim from api/supabase.ts — presentation only here. */}
-        <div className="mt-2 rounded-sm border border-border bg-canvas/50">
-          <p className="border-b border-border px-4 py-2 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+        <div className="border-t border-hairline pt-6">
+          <p className="label mb-3 text-ink-faint">
             Data retention · {RETENTION_DAYS} days
           </p>
-          <label className="flex cursor-pointer items-start gap-3 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
             <input
               id="signup-consent"
               type="checkbox"
               required
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+              className="mt-1 h-3.5 w-3.5 shrink-0 accent-[var(--color-accent)]"
             />
-            <span className="text-sm leading-relaxed text-ink-muted">
+            <span className="text-small leading-relaxed text-ink-muted">
               {RETENTION_CONSENT_TEXT}
             </span>
           </label>
         </div>
 
         {error && (
-          <Card tone="evidence" className="px-3 py-2">
-            <p className="text-sm text-evidence">{error}</p>
-          </Card>
+          <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+            {error}
+          </p>
         )}
 
-        <Button type="submit" disabled={submitting} size="lg" className="mt-2 w-full">
+        <Button type="submit" disabled={submitting} size="lg" className="mt-1 w-full">
           {submitting ? "Creating account…" : "Create Account"}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-muted">
+      <p className="mt-10 border-t border-hairline pt-6 text-small text-ink-muted">
         Already have an account?{" "}
-        <Link to="/login" className="text-accent hover:underline">
+        <Link to="/login" className="text-accent transition-colors hover:text-ink">
           Sign in
         </Link>
       </p>

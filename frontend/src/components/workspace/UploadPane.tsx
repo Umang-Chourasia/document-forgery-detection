@@ -1,27 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createAnalysis } from "../api/analysis";
-import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
-import { PageHeader } from "../components/ui/PageHeader";
+import { createAnalysis } from "../../api/analysis";
+import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { Button } from "../ui/Button";
 
+/**
+ * The upload stage. Behaviour is carried over unchanged from the previous
+ * Analyze page — the same accepted types, the same createAnalysis call, the
+ * same error handling and object-URL cleanup. Only the presentation is new:
+ * a document plate rather than a dashed dropzone card.
+ */
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-/** What the pipeline will do, in the order the result page presents it. */
-const PIPELINE_STEPS = [
-  {
-    label: "AI Localization",
-    body: "The document is analyzed to identify regions showing unusual visual evidence.",
-  },
-  {
-    label: "Measured Evidence",
-    body: "Quantitative measurements are calculated from the detected evidence.",
-  },
-  {
-    label: "AI Interpretation",
-    body: "A language model summarizes the measured evidence in concise, human-readable points.",
-  },
-];
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -29,8 +17,8 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function Analyze() {
-  const navigate = useNavigate();
+export function UploadPane() {
+  const { select, refresh } = useWorkspace();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -64,7 +52,10 @@ export function Analyze() {
     setError(null);
     try {
       const analysis = await createAnalysis(file);
-      navigate(`/analysis/${analysis.id}`);
+      // Same destination as before, expressed as a workspace selection so the
+      // shell and the rail stay mounted while the pipeline runs.
+      select(analysis.id);
+      refresh();
     } catch (err) {
       setError(
         err instanceof Error
@@ -85,12 +76,16 @@ export function Analyze() {
   const openPicker = () => inputRef.current?.click();
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <PageHeader
-        eyebrow="New analysis"
-        title="Upload a document image"
-        description="The document is analyzed to identify regions showing unusual visual evidence. Results are presented as evidence for review, not as an authenticity verdict."
-      />
+    <div className="mx-auto flex w-full max-w-3xl flex-col justify-center px-6 py-12 lg:px-12">
+      <p className="label text-ink-faint">New analysis</p>
+      <h1 className="mt-5 max-w-lg text-title font-medium tracking-tight text-ink">
+        Upload a document to localize its evidence
+      </h1>
+      <p className="mt-4 max-w-xl text-body leading-relaxed text-ink-muted">
+        The document is analyzed to identify regions showing unusual visual
+        evidence. Results are presented as evidence for review, not as an
+        authenticity verdict.
+      </p>
 
       <div
         onDragOver={(e) => {
@@ -113,10 +108,10 @@ export function Analyze() {
         role="button"
         tabIndex={0}
         aria-label="Choose a document image to analyze"
-        className={`flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed p-8 text-center transition-colors ${
+        className={`relative mt-10 flex min-h-[19rem] cursor-pointer flex-col items-center justify-center border p-8 text-center transition-colors ${
           isDragging
             ? "border-accent bg-accent-soft"
-            : "border-border-strong bg-surface hover:border-ink-faint"
+            : "border-hairline bg-canvas-deep hover:border-border-strong"
         }`}
       >
         <input
@@ -127,47 +122,51 @@ export function Analyze() {
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
 
+        {/* Registration marks, so an empty stage still reads as a plate. */}
+        {[
+          "left-3 top-3 border-l border-t",
+          "right-3 top-3 border-r border-t",
+          "left-3 bottom-3 border-b border-l",
+          "right-3 bottom-3 border-b border-r",
+        ].map((pos) => (
+          <span
+            key={pos}
+            aria-hidden="true"
+            className={`absolute h-3 w-3 border-ink-faint/30 ${pos}`}
+          />
+        ))}
+
         {previewUrl ? (
           <>
             <img
               src={previewUrl}
               alt="Selected document preview"
-              className="max-h-64 rounded-sm border border-border object-contain"
+              className="max-h-72 border border-hairline object-contain"
             />
-            <p className="mt-3 font-mono text-[11px] text-ink-faint">
-              Click to choose a different image
-            </p>
+            <p className="label mt-4 text-ink-faint">Click to choose a different document</p>
           </>
         ) : (
           <>
             <UploadGlyph />
             {/* The accepted types are still enforced by ACCEPTED_TYPES and the
                 file input's `accept` attribute — only the helper text is gone. */}
-            <p className="mt-4 font-mono text-sm text-ink">
-              Drop your document or click to browse
-            </p>
+            <p className="mt-5 text-body text-ink">Drop your document or click to browse</p>
           </>
         )}
       </div>
 
       {file && (
-        <div className="mt-3 flex items-center gap-3 rounded-sm border border-border bg-surface px-3 py-2.5">
-          <span className="rounded-sm border border-accent/30 bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] uppercase text-accent">
-            {file.type.replace("image/", "")}
-          </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink">
-            {file.name}
-          </span>
-          <span className="shrink-0 font-mono text-xs text-ink-faint">
-            {formatBytes(file.size)}
-          </span>
+        <div className="flex items-center gap-4 border-b border-hairline py-3.5">
+          <span className="label text-accent">{file.type.replace("image/", "")}</span>
+          <span className="min-w-0 flex-1 truncate text-small text-ink">{file.name}</span>
+          <span className="label shrink-0 text-ink-faint">{formatBytes(file.size)}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               clearFile();
             }}
             disabled={isSubmitting}
-            className="shrink-0 font-mono text-xs text-ink-faint transition-colors hover:text-evidence disabled:opacity-40"
+            className="label shrink-0 text-ink-faint transition-colors hover:text-evidence disabled:opacity-40"
           >
             Remove
           </button>
@@ -175,64 +174,37 @@ export function Analyze() {
       )}
 
       {error && (
-        <Card tone="evidence" className="mt-3 px-3 py-2">
-          <p className="text-sm text-evidence">{error}</p>
-        </Card>
+        <p className="mt-4 border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+          {error}
+        </p>
       )}
 
       <Button
         onClick={handleSubmit}
         disabled={!file || isSubmitting}
         size="lg"
-        className="mt-6 w-full"
+        className="mt-8 w-full sm:w-auto sm:self-start"
       >
         {isSubmitting ? "Starting analysis…" : "Run Analysis"}
       </Button>
-
-      <section className="mt-10 border-t border-border pt-6">
-        <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
-          What happens next
-        </p>
-        <ol className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-          {PIPELINE_STEPS.map((step, i) => (
-            <li
-              key={step.label}
-              className="flex-1 rounded-sm border border-border bg-surface p-4"
-            >
-              <p className="mb-1.5 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-accent">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full border border-accent/40 text-[9px]">
-                  {i + 1}
-                </span>
-                {step.label}
-              </p>
-              <p className="text-xs leading-relaxed text-ink-muted">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
     </div>
   );
 }
 
 function UploadGlyph() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-10 w-10 text-ink-faint"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-ink-faint" aria-hidden="true">
       <path
-        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
+        d="M12 15.5V4m0 0L8 8M12 4l4 4"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.25"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M4 15v2.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V15"
+        d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.25"
         strokeLinecap="round"
       />
     </svg>

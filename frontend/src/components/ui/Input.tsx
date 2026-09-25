@@ -7,25 +7,28 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 /**
- * Labelled text input. The <label> wraps the control, so the association
- * holds without needing matching htmlFor/id pairs — but the ids the existing
- * pages pass through are preserved, since the E2E tests select on them.
+ * Underline field: a bottom hairline that lights on focus, with the label
+ * above in mono micro-type. No box, no fill — the form reads as a document
+ * being filled in rather than a stack of widgets.
+ *
+ * The <label> wraps the control so the association holds without needing
+ * matching htmlFor/id pairs, but any `id` passed through is preserved: the
+ * auth pages set login-email / signup-consent and tests select on them.
  */
 export function Field({ label, hint, className = "", ...rest }: FieldProps) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-        {label}
-      </span>
+    <label className="flex flex-col gap-2">
+      <span className="label text-ink-faint">{label}</span>
       <input
         className={
-          "rounded-sm border border-border bg-surface px-3 py-2.5 text-sm text-ink " +
-          "outline-none transition-colors placeholder:text-ink-faint focus:border-accent " +
+          "w-full border-0 border-b border-hairline bg-transparent pb-2 text-body " +
+          "text-ink outline-none transition-colors placeholder:text-ink-faint " +
+          "focus:border-accent " +
           className
         }
         {...rest}
       />
-      {hint && <span className="text-xs text-ink-faint">{hint}</span>}
+      {hint && <span className="text-small text-ink-faint">{hint}</span>}
     </label>
   );
 }

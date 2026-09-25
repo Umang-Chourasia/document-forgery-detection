@@ -44,6 +44,32 @@ export interface EvidenceMetrics {
   regionCount: number;
   largestRegionFraction: number;
   largestRegionShare: number;
+
+  /**
+   * Strong-evidence measurements. Emitted by computeHeatmapMetrics and already
+   * persisted with every analysis since the strong-region rule shipped;
+   * declared here so the UI can read them. Optional because analyses stored
+   * before that still lack them.
+   */
+  strongIntensityThreshold?: number;
+  strongAreaFraction?: number;
+  strongPixelCount?: number;
+  strongRegionCount?: number;
+  strongLargestRegionFraction?: number;
+  /**
+   * Normalized bounds of the single most significant strong region — the same
+   * region the deterministic rule acts on. Fractions of the HEATMAP image,
+   * x/y from its top-left. Null when no strong region was found.
+   */
+  significantRegionBounds?: RegionBounds | null;
+}
+
+/** Normalized rectangle, each component a 0..1 fraction of the image. */
+export interface RegionBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** Tampering risk, decided by a fixed rule over the metrics — never by the LLM. */

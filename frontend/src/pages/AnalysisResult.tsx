@@ -1,188 +1,77 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { getAnalysis } from "../api/analysis";
-import { HeatmapViewer } from "../components/evidence/HeatmapViewer";
-import { MeasuredEvidence } from "../components/evidence/MeasuredEvidence";
-import { NarrativePanel } from "../components/evidence/NarrativePanel";
+import { useWorkspace } from "../contexts/WorkspaceContext";
+import { DocumentStage } from "../components/document/DocumentStage";
 import { ProcessingTimeline } from "../components/evidence/ProcessingTimeline";
-import { RiskCard } from "../components/evidence/RiskCard";
-import { StatusBadge } from "../components/evidence/StatusBadge";
-import { ButtonLink } from "../components/ui/Button";
-import { Card, CardHeader } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
-import type { Analysis } from "../types/analysis";
 
-const POLL_INTERVAL_MS = 800;
-
+/**
+ * The stage: the document and nothing else.
+ *
+ * Identity lives in the chrome and the reading lives in the rail, so this
+ * carries only the document itself — the largest thing on screen, which is
+ * the point of the product. The analysis is polled once in the workspace
+ * context and shared, so this does no fetching of its own.
+ */
 export function AnalysisResult() {
-  const { id } = useParams<{ id: string }>();
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { analysis, analysisError, clear } = useWorkspace();
 
-  useEffect(() => {
-    if (!id) return;
-
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const result = await getAnalysis(id);
-        if (cancelled) return;
-        setAnalysis(result);
-        setError(null);
-        if (result.status === "COMPLETED" || result.status === "FAILED") {
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Could not load this analysis. The server may be unreachable.",
-        );
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    };
-
-    poll();
-    pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [id]);
-
-  if (error) {
+  if (analysisError) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-16">
-        <Card tone="evidence" className="px-4 py-3">
-          <p className="text-sm text-evidence">{error}</p>
-        </Card>
-        <ButtonLink to="/history" variant="secondary" size="sm" className="mt-6">
-          Back to history
-        </ButtonLink>
+      <div className="flex min-h-0 flex-1 flex-col items-start justify-center px-8 py-16 lg:px-12">
+        <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+          {analysisError}
+        </p>
+        <Button variant="secondary" size="sm" onClick={clear} className="mt-6">
+          New analysis
+        </Button>
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-8 flex flex-col gap-2 border-b border-border pb-6">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-6 w-64" />
-        </div>
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Skeleton className="h-[62vh] min-h-[360px] w-full" />
-          <div className="flex flex-col gap-6">
-            <Skeleton className="h-40 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas-deep p-6">
+        <Skeleton className="h-[60%] min-h-[18rem] w-[52%] min-w-[16rem]" />
       </div>
     );
   }
 
-  const isProcessing = analysis.status === "QUEUED" || analysis.status === "PROCESSING";
+  const processing = analysis.status === "QUEUED" || analysis.status === "PROCESSING";
   const page = analysis.pages[0];
 
+  if (processing && !page?.catnet.heatmapUrl) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas-deep px-8 py-16">
+        <ProcessingTimeline
+          status={analysis.status}
+          currentStage={analysis.stage}
+          startedAt={analysis.createdAt}
+        />
+      </div>
+    );
+  }
+
+  if (analysis.status === "FAILED") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-start justify-center px-8 py-16 lg:px-12">
+        <p className="label text-evidence">Analysis failed</p>
+        <p className="mt-4 max-w-md text-body leading-relaxed text-ink-muted">
+          {analysis.error ?? "The analysis could not be completed."} Try
+          uploading the document again.
+        </p>
+        <Button variant="secondary" size="sm" onClick={clear} className="mt-8">
+          New analysis
+        </Button>
+      </div>
+    );
+  }
+
+  if (!page) return null;
+
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12">
-      <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
-        <div className="min-w-0">
-          <p className="mb-1 font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
-            Analysis
-          </p>
-          <h1 className="break-words text-xl font-medium text-ink">
-            {analysis.documentName}
-          </h1>
-          <p className="mt-1 font-mono text-xs text-ink-muted">
-            {analysis.pageCount} page · {analysis.documentType || "image"} ·{" "}
-            {new Date(analysis.createdAt).toLocaleString()}
-          </p>
-        </div>
-        <StatusBadge status={analysis.status} />
-      </header>
-
-      {isProcessing && (
-        <Card className="p-8">
-          <ProcessingTimeline
-            status={analysis.status}
-            currentStage={analysis.stage}
-            startedAt={analysis.createdAt}
-          />
-        </Card>
-      )}
-
-      {analysis.status === "FAILED" && (
-        <Card tone="evidence" className="p-6">
-          <p className="text-sm leading-relaxed text-evidence">
-            Analysis failed{analysis.error ? `: ${analysis.error}` : "."} Try uploading
-            the image again.
-          </p>
-          <ButtonLink to="/analyze" variant="secondary" size="sm" className="mt-4">
-            New analysis
-          </ButtonLink>
-        </Card>
-      )}
-
-      {analysis.status === "COMPLETED" && page && (
-        <>
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-            {/* ---- Layer 1: localization ---- */}
-            <section>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Document Localization
-                </h2>
-              </div>
-              <HeatmapViewer page={page} />
-            </section>
-
-            <aside className="flex flex-col gap-6">
-              {/* ---- Layer 2: Tampering Risk (deterministic rule) ---- */}
-              {analysis.risk && <RiskCard risk={analysis.risk} />}
-
-              {/* ---- Layer 3: Measured evidence (deterministic) ---- */}
-              {analysis.metrics && (
-                <MeasuredEvidence metrics={analysis.metrics} risk={analysis.risk} />
-              )}
-            </aside>
-          </div>
-
-          {/* ---- Layer 4: AI interpretation, full width beneath the grid ---- */}
-          {(analysis.narrative || analysis.narrativeError) && (
-            <div className="mt-8">
-              {analysis.narrativeError ? (
-                <Card tone="caution" className="p-5">
-                  <CardHeader
-                    title="Interpretation Unavailable"
-                    titleClass="text-caution"
-                  />
-                  <p className="text-sm leading-relaxed text-ink-muted">
-                    {analysis.narrativeError}
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                    The heatmap, measurements and risk level above are unaffected —
-                    only the written interpretation is missing.
-                  </p>
-                </Card>
-              ) : (
-                analysis.narrative && <NarrativePanel narrative={analysis.narrative} />
-              )}
-            </div>
-          )}
-
-          <Link
-            to="/history"
-            className="mt-8 inline-block font-mono text-xs text-ink-faint transition-colors hover:text-ink"
-          >
-            ← All analyses
-          </Link>
-        </>
-      )}
-    </div>
+    <DocumentStage
+      page={page}
+      significantRegion={analysis.metrics?.significantRegionBounds}
+    />
   );
 }
