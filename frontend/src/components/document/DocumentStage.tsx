@@ -242,15 +242,15 @@ export function DocumentStage({ page, significantRegion }: DocumentStageProps) {
         >
           {isSplit ? (
             <div className="flex shrink-0 items-center" style={{ gap: `${SPLIT_GAP}px` }}>
-              <figure className="shrink-0 bg-white/95 shadow-panel" style={paneStyle}>
+              <figure className="shrink-0 bg-white/95" style={paneStyle}>
                 {originalImg}
               </figure>
-              <figure className="shrink-0 bg-white/95 shadow-panel" style={paneStyle}>
+              <figure className="shrink-0 bg-white/95" style={paneStyle}>
                 {heatmapImg}
               </figure>
             </div>
           ) : (
-            <div className="relative shrink-0 bg-white/95 shadow-panel" style={paneStyle}>
+            <div className="relative shrink-0 bg-white/95" style={paneStyle}>
               {originalImg}
               {mode !== "original" && heatmapImg && (
                 <div

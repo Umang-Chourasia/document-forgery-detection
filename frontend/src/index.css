@@ -53,7 +53,6 @@
      focus, the single primary action — not decoration. */
   --color-accent: #3fa697;
   --color-accent-soft: #3fa69714;
-  --color-accent-line: #3fa6973d;
 
   --color-evidence: #e5605f;
   --color-evidence-soft: #e5605f14;
@@ -66,10 +65,8 @@
   --color-interpretation-soft: #9a8cf012;
 
   /* --- Geometry. Structure is square; only controls get a hint of radius. */
-  --radius-none: 0px;
   --radius-sm: 2px;
 
-  --spacing-gutter: 1.5rem;
   --spacing-rail: 23.75rem; /* 380px workspace rail, used from Phase 2 */
 }
 
