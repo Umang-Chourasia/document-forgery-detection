@@ -76,12 +76,14 @@ export function UploadPane() {
   const openPicker = () => inputRef.current?.click();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col justify-center px-6 py-12 lg:px-12">
-      <p className="label text-ink-faint">New analysis</p>
-      <h1 className="mt-5 max-w-lg text-title font-medium tracking-tight text-ink">
+    <div className="scroll-quiet mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center-safe overflow-y-auto px-6 py-12 lg:px-12">
+      <span className="self-start rounded-full border border-border px-4 py-1.5 text-small text-ink-muted">
+        New analysis
+      </span>
+      <h1 className="mt-6 max-w-2xl text-[2.5rem] font-medium leading-[1.02] tracking-[-0.04em] text-ink sm:text-[3.5rem]">
         Upload a document to localize its evidence
       </h1>
-      <p className="mt-4 max-w-xl text-body leading-relaxed text-ink-muted">
+      <p className="mt-5 max-w-xl text-lead leading-relaxed text-ink-muted">
         The document is analyzed to identify regions showing unusual visual
         evidence. Results are presented as evidence for review, not as an
         authenticity verdict.
@@ -108,10 +110,10 @@ export function UploadPane() {
         role="button"
         tabIndex={0}
         aria-label="Choose a document image to analyze"
-        className={`relative mt-10 flex min-h-[19rem] cursor-pointer flex-col items-center justify-center border p-8 text-center transition-colors ${
+        className={`relative mt-10 flex min-h-[19rem] min-w-0 shrink-0 cursor-pointer flex-col items-center justify-center rounded-panel border border-dashed p-8 text-center transition-colors ${
           isDragging
             ? "border-accent bg-accent-soft"
-            : "border-hairline bg-canvas-deep hover:border-border-strong"
+            : "border-border-strong bg-surface hover:border-ink/40"
         }`}
       >
         <input
@@ -122,43 +124,32 @@ export function UploadPane() {
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
 
-        {/* Registration marks, so an empty stage still reads as a plate. */}
-        {[
-          "left-3 top-3 border-l border-t",
-          "right-3 top-3 border-r border-t",
-          "left-3 bottom-3 border-b border-l",
-          "right-3 bottom-3 border-b border-r",
-        ].map((pos) => (
-          <span
-            key={pos}
-            aria-hidden="true"
-            className={`absolute h-3 w-3 border-ink-faint/30 ${pos}`}
-          />
-        ))}
-
         {previewUrl ? (
           <>
             <img
               src={previewUrl}
               alt="Selected document preview"
-              className="max-h-72 border border-hairline object-contain"
+              className="block h-auto max-h-[min(18rem,38svh)] w-auto max-w-full rounded-lg object-contain"
             />
-            <p className="label mt-4 text-ink-faint">Click to choose a different document</p>
+            <p className="mt-5 text-small text-ink-faint">Click to choose a different document</p>
           </>
         ) : (
           <>
             <UploadGlyph />
             {/* The accepted types are still enforced by ACCEPTED_TYPES and the
                 file input's `accept` attribute — only the helper text is gone. */}
-            <p className="mt-5 text-body text-ink">Drop your document or click to browse</p>
+            <p className="mt-6 text-[1.375rem] font-medium tracking-[-0.02em] text-ink">
+              Drop your document or click to browse
+            </p>
+            <p className="mt-2 text-small text-ink-faint">JPEG, PNG or WebP</p>
           </>
         )}
       </div>
 
       {file && (
-        <div className="flex items-center gap-4 border-b border-hairline py-3.5">
+        <div className="mt-4 flex items-center gap-4 rounded-full border border-border bg-surface px-5 py-3">
           <span className="label text-accent">{file.type.replace("image/", "")}</span>
-          <span className="min-w-0 flex-1 truncate text-small text-ink">{file.name}</span>
+          <span className="min-w-0 flex-1 truncate text-body text-ink">{file.name}</span>
           <span className="label shrink-0 text-ink-faint">{formatBytes(file.size)}</span>
           <button
             onClick={(e) => {
@@ -166,7 +157,7 @@ export function UploadPane() {
               clearFile();
             }}
             disabled={isSubmitting}
-            className="label shrink-0 text-ink-faint transition-colors hover:text-evidence disabled:opacity-40"
+            className="shrink-0 text-small text-ink-faint transition-colors hover:text-evidence disabled:opacity-40"
           >
             Remove
           </button>
@@ -174,7 +165,7 @@ export function UploadPane() {
       )}
 
       {error && (
-        <p className="mt-4 border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+        <p className="mt-4 rounded-card bg-evidence-soft px-6 py-4 text-small leading-relaxed text-evidence">
           {error}
         </p>
       )}
@@ -193,7 +184,7 @@ export function UploadPane() {
 
 function UploadGlyph() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-ink-faint" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" className="h-14 w-14 rounded-2xl bg-surface-raised p-3.5 text-ink" aria-hidden="true">
       <path
         d="M12 15.5V4m0 0L8 8M12 4l4 4"
         stroke="currentColor"

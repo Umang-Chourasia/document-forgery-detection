@@ -8,7 +8,8 @@ import { Skeleton } from "../ui/Skeleton";
 
 /**
  * The reading of the analysis on the stage: risk, then interpretation, then
- * measured evidence. Sections are hairline-separated disclosures, not cards.
+ * measured evidence, as a stack of soft panels. Starting a new analysis
+ * lives in the top bar, so the rail carries only the reading.
  */
 export function AnalysisRail() {
   const { activeId, clear, analysis, analysisError: error } = useWorkspace();
@@ -17,7 +18,7 @@ export function AnalysisRail() {
 
   if (error) {
     return (
-      <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+      <p className="rounded-card bg-evidence-soft px-6 py-5 text-small leading-relaxed text-evidence">
         {error}
       </p>
     );
@@ -25,10 +26,10 @@ export function AnalysisRail() {
 
   if (!analysis) {
     return (
-      <div className="flex flex-col gap-6" aria-busy="true">
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-40 w-full" />
+      <div className="flex flex-col gap-4" aria-busy="true">
+        <Skeleton className="h-44 w-full rounded-card" />
+        <Skeleton className="h-64 w-full rounded-card" />
+        <Skeleton className="h-20 w-full rounded-card" />
       </div>
     );
   }
@@ -36,7 +37,9 @@ export function AnalysisRail() {
   const processing = analysis.status === "QUEUED" || analysis.status === "PROCESSING";
 
   return (
-    <div className="flex flex-col">
+    // Keyed by analysis so every result opens with its panels expanded,
+    // rather than inheriting whatever was collapsed on the previous document.
+    <div key={analysis.id} className="flex flex-col gap-4">
       {analysis.risk && <RiskCard risk={analysis.risk} />}
 
       {processing && !analysis.risk && (
@@ -50,11 +53,12 @@ export function AnalysisRail() {
       )}
 
       {analysis.status === "FAILED" && (
-        <div className="pb-7">
-          <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
-            Analysis failed{analysis.error ? `: ${analysis.error}` : "."}
+        <div className="rounded-card border border-hairline bg-surface px-7 py-7">
+          <p className="label text-evidence">Analysis failed</p>
+          <p className="mt-3 text-small leading-relaxed text-ink-muted">
+            {analysis.error ?? "The analysis could not be completed."}
           </p>
-          <Button variant="secondary" size="sm" onClick={clear} className="mt-4">
+          <Button variant="secondary" size="sm" onClick={clear} className="mt-5">
             New analysis
           </Button>
         </div>
@@ -62,10 +66,10 @@ export function AnalysisRail() {
 
       {analysis.narrativeError && (
         <Collapsible title="Interpretation" titleClass="text-caution">
-          <p className="text-small leading-relaxed text-ink-muted">
+          <p className="text-body leading-relaxed text-ink-muted">
             {analysis.narrativeError}
           </p>
-          <p className="mt-2.5 text-small leading-relaxed text-ink-faint">
+          <p className="mt-3 text-small leading-relaxed text-ink-faint">
             The document, measurements and risk level are unaffected — only the
             written interpretation is missing.
           </p>
@@ -76,14 +80,6 @@ export function AnalysisRail() {
 
       {analysis.metrics && (
         <MeasuredEvidence metrics={analysis.metrics} risk={analysis.risk} />
-      )}
-
-      {!processing && (
-        <div className="border-t border-hairline pt-5">
-          <Button variant="secondary" size="sm" onClick={clear}>
-            New analysis
-          </Button>
-        </div>
       )}
     </div>
   );
@@ -115,13 +111,13 @@ function ProcessingStatus({
 }) {
   if (!hasEvidenceMap) {
     return (
-      <section className="pb-7" aria-live="polite">
-        <h2 className="label mb-4 text-ink-faint">Analysis</h2>
-        <p className="flex items-center gap-2.5 text-body text-ink">
+      <section className="rounded-card border border-hairline bg-surface px-7 py-7" aria-live="polite">
+        <h2 className="label mb-5 text-ink-faint">Analysis</h2>
+        <p className="flex items-center gap-3 text-[1.5rem] font-medium tracking-[-0.02em] text-ink">
           <Pulse />
           Processing document
         </p>
-        <p className="mt-2 text-small leading-relaxed text-ink-muted">
+        <p className="mt-2 text-body leading-relaxed text-ink-muted">
           {(stage && STAGE_COPY[stage]) ?? "Analyzing evidence"}…
         </p>
       </section>
@@ -129,18 +125,18 @@ function ProcessingStatus({
   }
 
   return (
-    <section className="pb-7" aria-live="polite">
-      <h2 className="label mb-4 text-ink-faint">Analysis</h2>
+    <section className="rounded-card border border-hairline bg-surface px-7 py-7" aria-live="polite">
+      <h2 className="label mb-5 text-ink-faint">Analysis</h2>
 
       <p className="label flex items-center gap-2.5 text-accent">
         <Tick />
         Evidence map ready
       </p>
-      <p className="mt-2 text-small leading-relaxed text-ink-muted">
+      <p className="mt-2 text-body leading-relaxed text-ink-muted">
         Heatmap generated successfully.
       </p>
 
-      <p className="mt-5 flex items-center gap-2.5 text-body text-ink">
+      <p className="mt-6 flex items-center gap-3 border-t border-border pt-6 text-[1.5rem] font-medium tracking-[-0.02em] text-ink">
         <Pulse />
         Generating interpretation…
       </p>
@@ -152,14 +148,14 @@ function Pulse() {
   return (
     <span
       aria-hidden="true"
-      className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+      className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
     />
   );
 }
 
 function Tick() {
   return (
-    <svg viewBox="0 0 12 12" fill="none" aria-hidden="true" className="h-2.5 w-2.5 shrink-0">
+    <svg viewBox="0 0 12 12" fill="none" aria-hidden="true" className="h-3 w-3 shrink-0">
       <path d="M2 6.4L4.6 9 10 3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -183,13 +179,20 @@ const PIPELINE_STEPS = [
 function UploadGuidance() {
   return (
     <div className="flex flex-col">
-      <p className="label mb-4 text-ink-faint">What happens next</p>
-      <ol>
+      <p className="label mb-5 text-ink-faint">What happens next</p>
+      <ol className="flex flex-col gap-3">
         {PIPELINE_STEPS.map((step, i) => (
-          <li key={step.label} className="border-t border-hairline py-5">
-            <p className="label mb-2 flex items-baseline gap-3 text-accent">
-              <span className="text-ink-faint">{String(i + 1).padStart(2, "0")}</span>
-              {step.label}
+          <li
+            key={step.label}
+            className="rounded-card border border-hairline bg-surface px-7 py-6"
+          >
+            <p className="mb-2 flex items-baseline justify-between gap-3">
+              <span className="text-[1.375rem] font-medium tracking-[-0.02em] text-ink">
+                {step.label}
+              </span>
+              <span className="font-mono text-small text-ink-dim">
+                {String(i + 1).padStart(2, "0")}
+              </span>
             </p>
             <p className="text-small leading-relaxed text-ink-muted">{step.body}</p>
           </li>

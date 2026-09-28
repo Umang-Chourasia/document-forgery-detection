@@ -1,4 +1,5 @@
 import { Badge, type BadgeSize } from "../ui/Badge";
+import { titleCase } from "../../lib/display";
 import type { AnalysisStatus } from "../../types/analysis";
 
 /**
@@ -7,10 +8,10 @@ import type { AnalysisStatus } from "../../types/analysis";
  * kind of duplication that drifts.
  */
 const STATUS_STYLES: Record<AnalysisStatus, string> = {
-  QUEUED: "border-ink-faint/40 text-ink-muted",
-  PROCESSING: "border-accent/40 text-accent",
-  COMPLETED: "border-accent/40 bg-accent-soft text-accent",
-  FAILED: "border-evidence/40 bg-evidence-soft text-evidence",
+  QUEUED: "bg-surface-raised text-ink-muted",
+  PROCESSING: "bg-accent-soft text-accent",
+  COMPLETED: "bg-accent-soft text-accent",
+  FAILED: "bg-evidence-soft text-evidence",
 };
 
 interface StatusBadgeProps {
@@ -21,10 +22,12 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
   return (
     <Badge size={size} className={STATUS_STYLES[status]}>
-      {status === "PROCESSING" && (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" />
-      )}
-      {status}
+      <span
+        className={`h-1.5 w-1.5 rounded-full bg-current ${
+          status === "PROCESSING" ? "animate-pulse motion-reduce:animate-none" : ""
+        }`}
+      />
+      {titleCase(status)}
     </Badge>
   );
 }

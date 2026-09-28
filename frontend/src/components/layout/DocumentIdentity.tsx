@@ -16,8 +16,9 @@ export interface ActiveDocument {
  */
 export function DocumentIdentity({ doc }: { doc: ActiveDocument }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 border-l border-hairline pl-5">
-      <span className="min-w-0 max-w-[16rem] truncate text-small text-ink" title={doc.documentName}>
+    <div className="flex min-w-0 items-center gap-3">
+      <span aria-hidden="true" className="h-7 w-px shrink-0 bg-border" />
+      <span className="min-w-0 max-w-[18rem] truncate text-body text-ink" title={doc.documentName}>
         {doc.documentName}
       </span>
       {doc.riskLevel ? (

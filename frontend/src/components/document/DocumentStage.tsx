@@ -219,7 +219,7 @@ export function DocumentStage({ page }: DocumentStageProps) {
           onPointerMove={handlePointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          className={`flex items-center justify-center overflow-auto bg-canvas-deep p-6 lg:h-full ${
+          className={`scroll-quiet flex items-center justify-center overflow-auto p-6 lg:h-full ${
             canPan ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
           }`}
           style={{
@@ -229,15 +229,15 @@ export function DocumentStage({ page }: DocumentStageProps) {
         >
           {isSplit ? (
             <div className="flex shrink-0 items-center" style={{ gap: `${SPLIT_GAP}px` }}>
-              <figure className="shrink-0 bg-white/95" style={paneStyle}>
+              <figure className="shrink-0 overflow-hidden rounded-lg bg-white/95 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)]" style={paneStyle}>
                 {originalImg}
               </figure>
-              <figure className="shrink-0 bg-white/95" style={paneStyle}>
+              <figure className="shrink-0 overflow-hidden rounded-lg bg-white/95 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)]" style={paneStyle}>
                 {heatmapImg}
               </figure>
             </div>
           ) : (
-            <div className="relative shrink-0 bg-white/95" style={paneStyle}>
+            <div className="relative shrink-0 overflow-hidden rounded-lg bg-white/95 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)]" style={paneStyle}>
               {originalImg}
               {mode !== "original" && heatmapImg && (
                 <div
@@ -252,8 +252,10 @@ export function DocumentStage({ page }: DocumentStageProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-6 py-3">
-        <p className="label text-ink-faint">Page {page.pageNumber}</p>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-5 pb-4 pt-1">
+        <p className="label rounded-full border border-border bg-canvas/80 px-4 py-2 text-ink-faint">
+          Page {page.pageNumber}
+        </p>
         <div className="label flex flex-wrap gap-x-5 gap-y-1 text-ink-faint">
           {canPan && <span>Drag to pan</span>}
           {aspectMismatch && (

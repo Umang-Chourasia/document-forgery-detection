@@ -30,7 +30,7 @@ export function HistoryPane() {
 
   if (historyError) {
     return (
-      <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+      <p className="rounded-card bg-evidence-soft px-6 py-5 text-small leading-relaxed text-evidence">
         {historyError}
       </p>
     );
@@ -38,10 +38,10 @@ export function HistoryPane() {
 
   if (entries === null) {
     return (
-      <div className="flex flex-col" aria-busy="true">
+      <div className="flex flex-col gap-2" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-3 border-b border-hairline py-4">
-            <Skeleton className="h-9 w-9 shrink-0" />
+          <div key={i} className="flex items-center gap-4 rounded-card bg-surface p-3">
+            <Skeleton className="h-12 w-12 shrink-0" />
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Skeleton className="h-2.5 w-3/5" />
               <Skeleton className="h-2 w-2/5" />
@@ -54,7 +54,7 @@ export function HistoryPane() {
 
   if (entries.length === 0) {
     return (
-      <p className="text-small leading-relaxed text-ink-muted">
+      <p className="rounded-card border border-hairline bg-surface px-7 py-6 text-body leading-relaxed text-ink-muted">
         No analyses yet. Upload a document to begin — results appear here and
         stay for seven days.
       </p>
@@ -65,10 +65,10 @@ export function HistoryPane() {
     <div className="flex flex-col">
       {groupByDate(entries).map((group) => (
         <section key={group.label}>
-          <p className="label sticky top-0 z-[1] bg-canvas py-3 text-ink-faint">
+          <p className="label sticky top-0 z-[1] bg-canvas px-1 pb-3 pt-4 text-ink-faint">
             {group.label}
           </p>
-          <ul>
+          <ul className="flex flex-col gap-2">
             {group.items.map((entry) => (
               <HistoryRow
                 key={entry.id}
@@ -106,19 +106,21 @@ function HistoryRow({
 }: RowProps) {
   return (
     <li
-      className={`group border-b border-hairline transition-colors ${
-        active ? "bg-surface" : "hover:bg-surface/60"
+      className={`group rounded-card border transition-colors ${
+        active
+          ? "border-border-strong bg-surface-raised"
+          : "border-hairline bg-surface hover:border-border"
       }`}
     >
-      <div className="flex items-center gap-3 py-3 pr-1">
+      <div className="flex items-center gap-3 py-3 pl-3 pr-4">
         <button
           onClick={onSelect}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          className="flex min-w-0 flex-1 items-center gap-4 rounded-control text-left"
           aria-current={active ? "true" : undefined}
         >
           <span
-            className={`h-9 w-9 shrink-0 overflow-hidden border ${
-              active ? "border-accent" : "border-hairline"
+            className={`h-12 w-12 shrink-0 overflow-hidden rounded-control border bg-well ${
+              active ? "border-ink/40" : "border-border"
             }`}
           >
             {entry.thumbnailUrl ? (
@@ -127,8 +129,8 @@ function HistoryRow({
           </span>
 
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-small text-ink">{entry.documentName}</span>
-            <span className="label mt-1 block text-ink-faint">
+            <span className="block truncate text-body text-ink">{entry.documentName}</span>
+            <span className="mt-0.5 block font-mono text-[0.8125rem] text-ink-faint">
               {new Date(entry.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -145,14 +147,14 @@ function HistoryRow({
             <button
               onClick={onConfirmDelete}
               disabled={deleting}
-              className="label text-evidence transition-colors hover:text-evidence/80 disabled:opacity-40"
+              className="text-small font-medium text-evidence transition-colors hover:text-evidence/80 disabled:opacity-40"
             >
               {deleting ? "Deleting" : "Confirm"}
             </button>
             <button
               onClick={onCancelDelete}
               disabled={deleting}
-              className="label text-ink-faint transition-colors hover:text-ink disabled:opacity-40"
+              className="text-small text-ink-faint transition-colors hover:text-ink disabled:opacity-40"
             >
               Cancel
             </button>
@@ -161,7 +163,7 @@ function HistoryRow({
           <button
             onClick={onAskDelete}
             aria-label={`Delete ${entry.documentName}`}
-            className="label shrink-0 text-ink-faint opacity-0 transition-opacity hover:text-evidence focus-visible:opacity-100 group-hover:opacity-100"
+            className="shrink-0 text-small text-ink-faint opacity-0 transition-opacity hover:text-evidence focus-visible:opacity-100 group-hover:opacity-100"
           >
             Delete
           </button>
@@ -169,7 +171,7 @@ function HistoryRow({
       </div>
 
       {confirming && (
-        <p className="label pb-3 leading-relaxed text-caution">
+        <p className="px-4 pb-3 text-small leading-relaxed text-caution">
           Permanently deletes the document and result
         </p>
       )}

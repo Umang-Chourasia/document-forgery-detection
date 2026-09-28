@@ -18,7 +18,7 @@ export function AnalysisResult() {
   if (analysisError) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-start justify-center px-8 py-16 lg:px-12">
-        <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+        <p className="rounded-card bg-evidence-soft px-6 py-5 text-body leading-relaxed text-evidence">
           {analysisError}
         </p>
         <Button variant="secondary" size="sm" onClick={clear} className="mt-6">
@@ -30,8 +30,8 @@ export function AnalysisResult() {
 
   if (!analysis) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas-deep p-6">
-        <Skeleton className="h-[60%] min-h-[18rem] w-[52%] min-w-[16rem]" />
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+        <Skeleton className="h-[60%] min-h-[18rem] w-[52%] min-w-[16rem] rounded-card" />
       </div>
     );
   }
@@ -41,7 +41,7 @@ export function AnalysisResult() {
 
   if (processing && !page?.catnet.heatmapUrl) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas-deep px-8 py-16">
+      <div className="flex min-h-0 flex-1 items-center justify-center px-8 py-16">
         <ProcessingTimeline
           status={analysis.status}
           currentStage={analysis.stage}
@@ -55,7 +55,7 @@ export function AnalysisResult() {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-start justify-center px-8 py-16 lg:px-12">
         <p className="label text-evidence">Analysis failed</p>
-        <p className="mt-4 max-w-md text-body leading-relaxed text-ink-muted">
+        <p className="mt-4 max-w-md text-lead leading-relaxed text-ink-muted">
           {analysis.error ?? "The analysis could not be completed."} Try
           uploading the document again.
         </p>

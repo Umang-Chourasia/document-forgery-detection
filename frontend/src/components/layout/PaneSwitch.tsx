@@ -1,9 +1,8 @@
 import { useWorkspace } from "../../contexts/WorkspaceContext";
 
 /**
- * ANALYSIS │ HISTORY — the two halves of the workspace, side by side.
- * An underline marks the active pane; these are not tabs to a different page
- * and not pills.
+ * ANALYSIS │ HISTORY — the two halves of the workspace, as one segmented
+ * pill. These are views of the same place, not links to another page.
  */
 export function PaneSwitch() {
   const { pane, setPane, entries } = useWorkspace();
@@ -15,19 +14,23 @@ export function PaneSwitch() {
       role="tab"
       aria-selected={pane === key}
       onClick={() => setPane(key)}
-      className={`label flex flex-1 items-center justify-between gap-2 border-b py-4 transition-colors ${
-        pane === key
-          ? "border-accent text-ink"
-          : "border-hairline text-ink-faint hover:text-ink-muted"
+      className={`flex items-center justify-center gap-2 rounded-full py-2.5 text-body font-medium transition-colors ${
+        pane === key ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink"
       }`}
     >
       <span>{label}</span>
-      {badge && <span className="text-ink-faint">{badge}</span>}
+      {badge && (
+        <span className={pane === key ? "text-canvas/50" : "text-ink-dim"}>{badge}</span>
+      )}
     </button>
   );
 
   return (
-    <div role="tablist" aria-label="Workspace" className="flex gap-7">
+    <div
+      role="tablist"
+      aria-label="Workspace"
+      className="grid grid-cols-2 gap-1 rounded-full border border-border bg-well p-1"
+    >
       {item("analysis", "Analysis")}
       {item("history", "History", count > 0 ? String(count) : undefined)}
     </div>

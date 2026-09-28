@@ -18,9 +18,9 @@ export function WorkspaceRail() {
   const { pane } = useWorkspace();
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-6 lg:px-8">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <PaneSwitch />
-      <div className="scroll-quiet max-h-[46svh] min-h-0 flex-1 overflow-y-auto py-6 pr-1 lg:max-h-none">
+      <div className="scroll-quiet max-h-[46svh] min-h-0 flex-1 overflow-y-auto pb-2 lg:max-h-none">
         {pane === "history" ? <HistoryPane /> : <AnalysisRail />}
       </div>
     </div>

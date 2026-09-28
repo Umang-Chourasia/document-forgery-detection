@@ -64,26 +64,26 @@ export function ProcessingTimeline({
   return (
     <div className="flex flex-col items-center py-4">
       <div className="mb-6 flex flex-col items-center text-center">
-        <span className="relative mb-4 flex h-12 w-12 items-center justify-center">
+        <span className="relative mb-6 flex h-16 w-16 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-accent/20 motion-reduce:animate-none" />
-          <span className="relative flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-accent-soft font-mono text-sm text-accent">
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-full border border-accent/40 bg-accent-soft font-mono text-body text-accent">
             {currentIndex >= 0 ? currentIndex + 1 : "·"}
           </span>
         </span>
-        <p className="font-mono text-sm text-ink">
+        <p className="text-[2rem] font-medium tracking-[-0.03em] text-ink">
           {active ? active.label : "Starting analysis"}
         </p>
-        <p className="mt-1 max-w-xs text-sm text-ink-muted">
+        <p className="mt-2 max-w-sm text-body text-ink-muted">
           {active ? active.caption : "Queued for processing."}
         </p>
         {elapsed !== null && (
-          <p className="mt-3 font-mono text-xs tabular-nums text-ink-faint">
+          <p className="mt-4 font-mono text-small tabular-nums text-ink-faint">
             {elapsed}s elapsed
           </p>
         )}
       </div>
 
-      <ol className="flex w-full max-w-sm flex-col gap-3">
+      <ol className="flex w-full max-w-sm flex-col gap-2 rounded-card border border-hairline bg-surface p-6">
         {STAGES.map((stage, i) => {
           const isDone = status === "COMPLETED" || i < currentIndex;
           const isActive = !isDone && i === currentIndex;
@@ -92,11 +92,11 @@ export function ProcessingTimeline({
           return (
             <li
               key={stage.key}
-              className="flex items-center gap-3 font-mono text-sm"
+              className="flex items-center gap-3 py-1 text-body"
               aria-current={isActive ? "step" : undefined}
             >
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-mono text-[0.6875rem] ${
                   isDone
                     ? "border-accent bg-accent text-canvas"
                     : isFailedHere

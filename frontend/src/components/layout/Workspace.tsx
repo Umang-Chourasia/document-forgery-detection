@@ -9,19 +9,20 @@ import { WorkspaceRail } from "./WorkspaceRail";
  * separate destinations.
  *
  * The provider lives in the Layout so the chrome shares it; this component
- * only lays the two columns out. The rail is a fixed column at `lg` and above
- * and stacks above the stage below it.
+ * only lays the two columns out. At `lg` and above both are panels inside a
+ * gutter and fill the viewport under the top bar; below it the rail stacks
+ * above the stage.
  */
 export function Workspace() {
   const { activeId } = useWorkspace();
 
   return (
-    <div className="lg:grid lg:h-[calc(100svh-4.25rem)] lg:grid-cols-[var(--spacing-rail)_1fr]">
-      <aside className="border-b border-hairline py-2 lg:min-h-0 lg:border-b-0 lg:border-r lg:py-4">
+    <div className="flex flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6 lg:grid lg:h-[calc(100svh-var(--spacing-nav))] lg:grid-cols-[var(--spacing-rail)_1fr] lg:gap-6">
+      <aside className="lg:min-h-0">
         <WorkspaceRail />
       </aside>
 
-      <section className="flex min-w-0 flex-col lg:min-h-0">
+      <section className="dots flex min-w-0 flex-col overflow-hidden rounded-panel border border-hairline bg-well lg:min-h-0">
         {activeId ? <AnalysisResult /> : <UploadPane />}
       </section>
     </div>

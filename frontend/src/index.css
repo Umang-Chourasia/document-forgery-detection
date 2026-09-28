@@ -3,71 +3,99 @@
 /**
  * Design tokens.
  *
- * Direction: an editorial forensic workstation. Structure is carried by
- * hairline rules and whitespace rather than boxes, so radius and shadow are
- * deliberately near-zero and the palette is neutral with a single restrained
- * accent. The four semantic hues stay — they encode meaning the product
- * relies on (measurement, evidence, caution, interpretation) — but their
- * chroma is pulled back so nothing glows.
+ * Direction: a near-black editorial surface with oversized, tightly tracked
+ * type, soft panels and pill controls. Dark only — there is no light theme,
+ * and `color-scheme: dark` keeps native controls and scrollbars dark too.
+ *
+ * Neutrals are white at fixed opacities over #020108, so every grey is the
+ * same hue. The semantic hues stay — they encode meaning the product relies
+ * on (measurement, evidence, caution, interpretation) — and are used only
+ * where that meaning applies. Primary actions are white, not coloured.
  */
 @theme {
-  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --font-sans: "Geist", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Consolas, monospace;
 
-  /* --- Type scale. Display is for the one hero moment per view. --- */
-  --text-display: 3rem;
-  --text-display--line-height: 1.04;
-  --text-display--letter-spacing: -0.022em;
-  --text-title: 1.5rem;
-  --text-title--line-height: 1.25;
-  --text-title--letter-spacing: -0.014em;
-  --text-lead: 1.0625rem;
-  --text-lead--line-height: 1.6;
-  --text-body: 0.875rem;
-  --text-body--line-height: 1.6;
-  --text-small: 0.8125rem;
+  /* --- Type scale. Larger than a typical app: body is 17px. --- */
+  --text-display: 6.5rem;
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.045em;
+  --text-title: 2.25rem;
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.03em;
+  --text-lead: 1.375rem;
+  --text-lead--line-height: 1.5;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.55;
+  --text-small: 0.9375rem;
   --text-small--line-height: 1.55;
   /* Mono micro-label: section headings, numerics, metadata. Never prose. */
-  --text-label: 0.625rem;
+  --text-label: 0.75rem;
   --text-label--line-height: 1.4;
   --text-label--letter-spacing: 0.14em;
 
-  /* --- Surfaces. `canvas-deep` is the document stage: the page should read
-         as lit against it. --- */
-  --color-canvas-deep: #08090b;
-  --color-canvas: #0b0c0e;
-  --color-surface: #101215;
-  --color-surface-raised: #15171b;
+  /* --- Surfaces. --- */
+  --color-canvas-deep: #020108;
+  --color-canvas: #020108;
+  --color-well: #0b0a10;
+  --color-surface: #111111;
+  --color-surface-raised: #18181d;
 
-  /* --- Rules. `hairline` is the default divider; `border` is the rare
-         emphasis. Enclosing boxes are the exception, not the norm. --- */
-  --color-hairline: #1c1f24;
-  --color-border: #23262d;
-  --color-border-strong: #33373f;
+  /* --- Rules. --- */
+  --color-hairline: #1d1d22;
+  --color-border: #2a2a30;
+  --color-border-strong: #3a3a42;
 
-  --color-ink: #e8e9ec;
-  --color-ink-muted: #9095a0;
-  --color-ink-faint: #5b6068;
+  /* White at 100 / 64 / 50 / 30 %. */
+  --color-ink: #ffffff;
+  --color-ink-muted: #ffffffa3;
+  --color-ink-faint: #ffffff80;
+  --color-ink-dim: #ffffff4d;
 
-  /* Restrained from the previous neon teal. Accent marks state — selection,
-     focus, the single primary action — not decoration. */
-  --color-accent: #3fa697;
-  --color-accent-soft: #3fa69714;
+  /* Marks state (completed, focus, "read by the rule") — not actions. */
+  --color-accent: #5cc4b3;
+  --color-accent-soft: #5cc4b31f;
 
-  --color-evidence: #e5605f;
-  --color-evidence-soft: #e5605f14;
+  --color-evidence: #ff5a54;
+  --color-evidence-soft: #ff5a541f;
 
-  --color-caution: #d9a441;
+  --color-caution: #e0b04a;
+  --color-caution-soft: #e0b04a1f;
+
+  --color-safe: #4fcf8e;
+  --color-safe-soft: #4fcf8e1f;
 
   /* Reserved for the interpretation layer only. Nothing deterministic is ever
-     rendered in this colour, so violet reads as "a model wrote this". */
-  --color-interpretation: #9a8cf0;
-  --color-interpretation-soft: #9a8cf012;
+     rendered in this colour, so violet reads as "this was written, not
+     measured". */
+  --color-interpretation: #b0a6f5;
+  --color-interpretation-dot: #9a8cf0;
+  --color-interpretation-soft: #9a8cf01f;
 
-  /* --- Geometry. Structure is square; only controls get a hint of radius. */
-  --radius-sm: 2px;
+  /* --- Geometry. Soft panels, pill controls. --- */
+  --radius-sm: 0.5rem;
+  --radius-control: 1rem;
+  --radius-card: 1.75rem;
+  --radius-panel: 2rem;
+  --radius-hero: 3rem;
 
-  --spacing-rail: 23.75rem; /* 380px workspace rail, used from Phase 2 */
+  --spacing-rail: 27.5rem; /* 440px workspace rail */
+  --spacing-nav: 5rem; /* 80px top bar */
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-canvas);
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
@@ -75,7 +103,7 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -84,11 +112,15 @@ body {
   min-height: 100svh;
 }
 
-/* Keyboard focus is visible everywhere; pointer focus stays quiet. */
+::selection {
+  background: #ffffff33;
+}
+
+/* Keyboard focus is visible everywhere; pointer focus stays quiet. The
+   outline follows each control's own radius. */
 :focus-visible {
-  outline: 1px solid var(--color-accent);
+  outline: 2px solid #ffffffb3;
   outline-offset: 3px;
-  border-radius: 0;
 }
 
 /* Section label: the one repeated typographic device in the product. */
@@ -98,6 +130,12 @@ body {
   line-height: var(--text-label--line-height);
   letter-spacing: var(--text-label--letter-spacing);
   text-transform: uppercase;
+}
+
+/* The dot grid used behind the document stage and hero panels. */
+.dots {
+  background-image: radial-gradient(#1f1f25 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 /* Scrolls, but without a visible bar crowding the text beside it. */

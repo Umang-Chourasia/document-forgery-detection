@@ -2,41 +2,38 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 /**
- * Three real button treatments, kept behind the four variant names the rest
- * of the app already passes so no call site has to change:
+ * Pill buttons, behind the four variant names the rest of the app already
+ * passes so no call site has to change:
  *
- *   primary   — one solid accent action per view
- *   secondary — quiet: text with a hairline underline on hover
- *   ghost     — quiet without the rule
+ *   primary   — solid white pill; one per view
+ *   secondary — outlined pill
+ *   ghost     — text only
  *   danger    — destructive, text-only until it is the confirm step
- *
- * Nothing is a filled pill. Radius is a hint, not a shape.
  */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-sm font-mono uppercase " +
-  "tracking-[0.1em] transition-colors disabled:cursor-not-allowed disabled:opacity-35";
+  "inline-flex items-center justify-center gap-2 rounded-full font-medium " +
+  "tracking-[-0.01em] transition-colors disabled:cursor-not-allowed disabled:opacity-35";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    "bg-accent text-canvas-deep font-medium enabled:hover:bg-accent/85",
+  primary: "bg-ink text-canvas enabled:hover:bg-ink/85 [&:not(button)]:hover:bg-ink/85",
   secondary:
-    "border-b border-hairline text-ink-muted enabled:hover:border-accent " +
-    "enabled:hover:text-ink",
+    "border border-border text-ink enabled:hover:border-border-strong enabled:hover:bg-surface " +
+    "[&:not(button)]:hover:bg-surface",
   ghost: "text-ink-muted enabled:hover:text-ink",
   danger: "text-evidence enabled:hover:text-evidence/80",
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: "px-0 py-1 text-[0.6875rem]",
-  md: "px-4 py-2.5 text-[0.6875rem]",
-  lg: "px-6 py-3.5 text-xs",
+  sm: "px-4 py-2 text-small",
+  md: "px-5 py-2.5 text-body",
+  lg: "px-7 py-4 text-body",
 };
 
-/** Quiet variants are text, so horizontal padding would only misalign them. */
-const FLUSH: ButtonVariant[] = ["secondary", "ghost", "danger"];
+/** Text-only variants would only be misaligned by horizontal padding. */
+const FLUSH: ButtonVariant[] = ["ghost", "danger"];
 
 function buttonClass(
   variant: ButtonVariant = "primary",
@@ -88,5 +85,20 @@ export function ButtonLink({
     <Link to={to} className={buttonClass(variant, size, className)}>
       {children}
     </Link>
+  );
+}
+
+/** The arrow used on forward-moving primary actions. */
+export function ArrowRight({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M5 12h14M13 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

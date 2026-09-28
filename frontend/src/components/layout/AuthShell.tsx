@@ -7,31 +7,37 @@ interface AuthShellProps {
 }
 
 /**
- * Two-column editorial split rather than a centred card: a quiet statement
- * on the left against the deeper canvas, the form on the right. Below `lg`
- * the statement drops away and the form takes the column on its own.
+ * Two panels rather than a centred card: a statement panel on the dot grid
+ * on the left, the form on the right. Below `lg` the statement drops away and
+ * the form takes the column on its own.
  */
 export function AuthShell({ eyebrow, title, children }: AuthShellProps) {
   return (
-    <div className="grid min-h-[calc(100svh-4.25rem)] grid-cols-1 lg:grid-cols-12">
-      <aside className="hidden border-r border-hairline bg-canvas-deep px-12 py-16 lg:col-span-5 lg:flex lg:flex-col lg:justify-between xl:px-16">
-        <p className="label text-ink-faint">Document Forensics</p>
+    <div className="grid min-h-[calc(100svh-var(--spacing-nav))] grid-cols-1 gap-6 px-4 pb-4 sm:px-6 sm:pb-6 lg:grid-cols-2">
+      <aside className="dots hidden flex-col justify-between rounded-hero border border-hairline bg-well p-12 lg:flex xl:p-16">
+        <span className="self-start rounded-full border border-border px-4 py-1.5 text-small text-ink-muted">
+          Document Forensics
+        </span>
         <div>
-          <p className="max-w-sm text-title font-medium leading-snug tracking-tight text-ink">
-            Evidence you can inspect, not a score you have to trust.
+          <p className="max-w-lg text-[3.5rem] font-medium leading-[0.98] tracking-[-0.045em] text-ink xl:text-[4.5rem]">
+            Evidence you can inspect.
           </p>
-          <p className="mt-5 max-w-sm text-body leading-relaxed text-ink-muted">
-            Every result is a localization you can open, zoom into and read for
-            yourself.
+          <p className="mt-6 max-w-md text-lead leading-relaxed text-ink-muted">
+            Not a score you have to trust. Every result is a localization you
+            can open, zoom into and read for yourself.
           </p>
         </div>
-        <p className="label text-ink-faint">Localization only</p>
+        <p className="text-small text-ink-dim">Evidence for review — not a verdict.</p>
       </aside>
 
-      <div className="flex items-center px-6 py-16 sm:px-10 lg:col-span-7 lg:px-16 xl:px-24">
-        <div className="w-full max-w-sm">
-          <p className="label mb-3 text-ink-faint">{eyebrow}</p>
-          <h1 className="mb-10 text-title font-medium tracking-tight text-ink">{title}</h1>
+      <div className="flex items-center justify-center py-12">
+        <div className="w-full max-w-md">
+          <span className="rounded-full border border-border px-4 py-1.5 text-small text-ink-muted">
+            {eyebrow}
+          </span>
+          <h1 className="mb-10 mt-6 text-[3rem] font-medium leading-none tracking-[-0.04em] text-ink sm:text-[3.5rem]">
+            {title}
+          </h1>
           {children}
         </div>
       </div>

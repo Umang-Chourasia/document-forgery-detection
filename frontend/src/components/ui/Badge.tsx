@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 export type BadgeSize = "sm" | "md";
 
 const SIZES: Record<BadgeSize, string> = {
-  sm: "px-2 py-0.5 text-[10px]",
-  md: "px-2.5 py-1 text-[11px]",
+  sm: "px-2.5 py-0.5 text-[0.8125rem]",
+  md: "px-3 py-1 text-small",
 };
 
 interface BadgeProps {
@@ -19,7 +19,7 @@ interface BadgeProps {
 export function Badge({ className = "", size = "md", children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-sm border font-mono uppercase tracking-wide ${SIZES[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full font-medium ${SIZES[size]} ${className}`}
     >
       {children}
     </span>

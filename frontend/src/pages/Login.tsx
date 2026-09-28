@@ -44,7 +44,7 @@ export function Login() {
 
   return (
     <AuthShell eyebrow="Sign in" title="Welcome back">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field
           id="login-email"
           label="Email"
@@ -66,7 +66,7 @@ export function Login() {
         />
 
         {error && (
-          <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+          <p className="rounded-card bg-evidence-soft px-6 py-4 text-small leading-relaxed text-evidence">
             {error}
           </p>
         )}
@@ -76,9 +76,9 @@ export function Login() {
         </Button>
       </form>
 
-      <p className="mt-10 border-t border-hairline pt-6 text-small text-ink-muted">
+      <p className="mt-10 border-t border-border pt-7 text-body text-ink-muted">
         Don't have an account?{" "}
-        <Link to="/signup" className="text-accent transition-colors hover:text-ink">
+        <Link to="/signup" className="font-medium text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink">
           Create one
         </Link>
       </p>

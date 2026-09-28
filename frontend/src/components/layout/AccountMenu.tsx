@@ -53,10 +53,10 @@ export function AccountMenu({ email, onSignOut }: AccountMenuProps) {
         aria-controls={open ? menuId : undefined}
         aria-label={`Account: ${email}`}
         title={email}
-        className={`flex h-7 w-7 items-center justify-center rounded-full border text-[0.6875rem] font-medium transition-colors ${
+        className={`flex h-11 w-11 items-center justify-center rounded-full border bg-surface text-body font-medium transition-colors ${
           open
-            ? "border-accent text-accent"
-            : "border-border-strong text-ink-muted hover:border-ink-faint hover:text-ink"
+            ? "border-ink/50 text-ink"
+            : "border-border text-ink-muted hover:border-border-strong hover:text-ink"
         }`}
       >
         {initial}
@@ -66,10 +66,10 @@ export function AccountMenu({ email, onSignOut }: AccountMenuProps) {
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-64 border border-hairline bg-canvas"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-72 overflow-hidden rounded-card border border-border bg-surface p-2 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]"
         >
-          <p className="label border-b border-hairline px-4 py-3 text-ink-faint">Account</p>
-          <p className="truncate px-4 py-3 text-small text-ink" title={email}>
+          <p className="label px-4 pb-1 pt-3 text-ink-faint">Account</p>
+          <p className="truncate px-4 pb-3 text-small text-ink" title={email}>
             {email}
           </p>
           <button
@@ -78,7 +78,7 @@ export function AccountMenu({ email, onSignOut }: AccountMenuProps) {
               setOpen(false);
               onSignOut();
             }}
-            className="label w-full border-t border-hairline px-4 py-3 text-left text-ink-muted transition-colors hover:text-ink"
+            className="w-full rounded-control px-4 py-3 text-left text-body text-ink-muted transition-colors hover:bg-surface-raised hover:text-ink"
           >
             Log out
           </button>

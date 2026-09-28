@@ -74,7 +74,7 @@ export function Signup() {
 
   return (
     <AuthShell eyebrow="Create account" title="Get started">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <Field
           id="signup-email"
           label="Email"
@@ -99,7 +99,7 @@ export function Signup() {
 
         {/* Consent block. The text itself is the consent record and is
             rendered verbatim from api/supabase.ts — presentation only here. */}
-        <div className="border-t border-hairline pt-6">
+        <div className="rounded-card border border-hairline bg-surface p-6">
           <p className="label mb-3 text-ink-faint">
             Data retention · {RETENTION_DAYS} days
           </p>
@@ -110,7 +110,7 @@ export function Signup() {
               required
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
-              className="mt-1 h-3.5 w-3.5 shrink-0 accent-[var(--color-accent)]"
+              className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-ink)]"
             />
             <span className="text-small leading-relaxed text-ink-muted">
               {RETENTION_CONSENT_TEXT}
@@ -119,7 +119,7 @@ export function Signup() {
         </div>
 
         {error && (
-          <p className="border-l border-evidence pl-3 text-small leading-relaxed text-evidence">
+          <p className="rounded-card bg-evidence-soft px-6 py-4 text-small leading-relaxed text-evidence">
             {error}
           </p>
         )}
@@ -129,9 +129,9 @@ export function Signup() {
         </Button>
       </form>
 
-      <p className="mt-10 border-t border-hairline pt-6 text-small text-ink-muted">
+      <p className="mt-10 border-t border-border pt-7 text-body text-ink-muted">
         Already have an account?{" "}
-        <Link to="/login" className="text-accent transition-colors hover:text-ink">
+        <Link to="/login" className="font-medium text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink">
           Sign in
         </Link>
       </p>

@@ -3,7 +3,7 @@ interface SkeletonProps {
 }
 
 /** Placeholder block. `.skeleton` carries the pulse (index.css), which is
- *  disabled under prefers-reduced-motion. Square, like everything else. */
+ *  disabled under prefers-reduced-motion. */
 export function Skeleton({ className = "" }: SkeletonProps) {
-  return <div className={`skeleton ${className}`} aria-hidden="true" />;
+  return <div className={`skeleton rounded-control ${className}`} aria-hidden="true" />;
 }

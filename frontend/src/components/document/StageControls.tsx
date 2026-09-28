@@ -26,6 +26,9 @@ const MODES: { key: ViewMode; short: string; label: string }[] = [
  * bar above it, so the document keeps the whole stage. It carries its own
  * scrim because it sits over a bright plate.
  *
+ * Below `lg` the stage is too short for a vertical stack, so the same
+ * clusters lie in a row above the document instead of over it.
+ *
  * Deliberately no rotate: rotating one layer would break the original/heatmap
  * alignment the viewer guarantees.
  */
@@ -35,18 +38,18 @@ export function StageControls({
   opacity, setOpacity,
 }: StageControlsProps) {
   return (
-    <div className="pointer-events-none absolute right-4 top-4 z-10 flex flex-col items-end gap-2">
+    <div className="pointer-events-none z-10 flex flex-wrap items-center justify-end gap-2 px-4 pt-4 lg:absolute lg:right-4 lg:top-4 lg:flex-col lg:flex-nowrap lg:items-end lg:gap-2.5 lg:p-0">
       <Cluster>
         <IconButton label="Zoom in" onClick={onZoomIn} disabled={!canZoomIn}>
-          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
             <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
           </svg>
         </IconButton>
-        <span className="label px-1 py-1 text-center tabular-nums text-ink-muted" aria-live="polite">
+        <span className="px-2 py-1 text-center font-mono text-small tabular-nums text-ink-muted lg:px-0" aria-live="polite">
           {zoom}×
         </span>
         <IconButton label="Zoom out" onClick={onZoomOut} disabled={!canZoomOut}>
-          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
             <path d="M3.5 8h9" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
           </svg>
         </IconButton>
@@ -54,7 +57,7 @@ export function StageControls({
           {/* A circular arrow around a fitted frame: returns the document to
               its default fit. Deliberately not the corner brackets, which read
               as fullscreen — there is no fullscreen here. */}
-          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
             <rect x="5.5" y="5.5" width="5" height="5" stroke="currentColor" strokeWidth="1.1" />
             <path
               d="M13.2 6.6A5.5 5.5 0 0 0 3.4 4.6M2.8 9.4a5.5 5.5 0 0 0 9.8 2"
@@ -78,8 +81,10 @@ export function StageControls({
             title={m.label}
             disabled={m.key !== "original" && !modesEnabled}
             onClick={() => setMode(m.key)}
-            className={`label px-1 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${
-              mode === m.key ? "text-accent" : "text-ink-muted hover:text-ink"
+            className={`h-10 w-11 rounded-xl font-mono text-[0.8125rem] transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${
+              mode === m.key
+                ? "bg-ink font-medium text-canvas"
+                : "text-ink-muted enabled:hover:bg-surface-raised enabled:hover:text-ink"
             }`}
           >
             {m.short}
@@ -88,7 +93,7 @@ export function StageControls({
       </Cluster>
 
       {mode === "overlay" && modesEnabled && (
-        <Cluster className="items-center px-2 py-3">
+        <Cluster className="items-center px-3 py-2 lg:px-2 lg:py-3.5">
           <label htmlFor="heatmap-opacity" className="label sr-only">
             Overlay opacity
           </label>
@@ -101,10 +106,9 @@ export function StageControls({
             value={opacity}
             onChange={(e) => setOpacity(Number(e.target.value))}
             aria-label="Overlay opacity"
-            className="h-24 w-1 cursor-pointer accent-[var(--color-accent)]"
-            style={{ writingMode: "vertical-lr", direction: "rtl" }}
+            className="h-1 w-24 cursor-pointer accent-[var(--color-ink)] lg:h-24 lg:w-1 lg:[direction:rtl] lg:[writing-mode:vertical-lr]"
           />
-          <span className="label mt-2 tabular-nums text-ink-muted">
+          <span className="ml-2 font-mono text-[0.8125rem] tabular-nums text-ink-muted lg:ml-0 lg:mt-2">
             {Math.round(opacity * 100)}
           </span>
         </Cluster>
@@ -116,7 +120,7 @@ export function StageControls({
 function Cluster({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`pointer-events-auto flex flex-col items-stretch gap-1 border border-hairline bg-canvas/85 p-1 backdrop-blur ${className}`}
+      className={`pointer-events-auto flex flex-row items-center gap-0.5 rounded-[1.375rem] border border-border bg-canvas/80 p-1.5 backdrop-blur lg:flex-col lg:items-stretch ${className}`}
     >
       {children}
     </div>
@@ -137,7 +141,7 @@ function IconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-7 w-7 items-center justify-center text-ink-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-25"
+      className="flex h-11 w-11 items-center justify-center rounded-xl text-ink-muted transition-colors enabled:hover:bg-surface-raised enabled:hover:text-ink disabled:cursor-not-allowed disabled:opacity-25"
     >
       {children}
     </button>
