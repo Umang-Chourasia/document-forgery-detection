@@ -20,3 +20,9 @@ export const RISK_FILL: Record<RiskLevel, string> = {
   MEDIUM: "bg-caution",
   HIGH: "bg-evidence",
 };
+
+/**
+ * Heatmap opacity in the viewer's Overlay mode by default. The report's
+ * overlay image is composited at the same value, so the two look alike.
+ */
+export const DEFAULT_OVERLAY_OPACITY = 0.65;

@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWorkspace } from "../../contexts/WorkspaceContext";
+import { isReportReady } from "../../report/reportModel";
 import { AccountMenu } from "./AccountMenu";
+import { DownloadReportButton } from "./DownloadReportButton";
 import { DocumentIdentity } from "./DocumentIdentity";
 import { Logo } from "./Logo";
 
@@ -22,10 +24,18 @@ export function NavBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, user, loading, signOut } = useAuth();
-  const { activeDocument, activeId, clear } = useWorkspace();
+  const { activeDocument, activeId, clear, analysis } = useWorkspace();
   const isLanding = location.pathname === "/";
   const inWorkspace = location.pathname.startsWith("/w");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Only the analysis on the stage, and only once it is final: the heatmap is
+  // on screen before the interpretation finishes, but the report is not
+  // offered until the run has reached its terminal state.
+  const reportAnalysis =
+    inWorkspace && analysis && analysis.id === activeId && isReportReady(analysis)
+      ? analysis
+      : null;
 
   // The menu is closed from the events that navigate away, rather than from an
   // effect watching the pathname — same result, no cascading render.
@@ -77,6 +87,9 @@ export function NavBar() {
         <div className="ml-auto flex items-center gap-3">
           {loading ? null : session ? (
             <>
+              {reportAnalysis && (
+                <DownloadReportButton key={reportAnalysis.id} analysis={reportAnalysis} />
+              )}
               {inWorkspace && activeId && (
                 <button
                   onClick={startNew}
@@ -136,6 +149,14 @@ export function NavBar() {
           >
             New analysis
           </Link>
+          {reportAnalysis && (
+            <DownloadReportButton
+              key={reportAnalysis.id}
+              analysis={reportAnalysis}
+              variant="menu"
+              onDone={closeMenu}
+            />
+          )}
           <Link
             to="/w?pane=history"
             onClick={closeMenu}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { StageControls } from "./StageControls";
+import { DEFAULT_OVERLAY_OPACITY } from "../../lib/display";
 import type { AnalysisPage } from "../../types/analysis";
 
 export type ViewMode = "original" | "heatmap" | "overlay" | "split";
@@ -45,7 +46,7 @@ interface Size {
 export function DocumentStage({ page }: DocumentStageProps) {
   const [mode, setMode] = useState<ViewMode>("overlay");
   const [zoomIndex, setZoomIndex] = useState(0);
-  const [opacity, setOpacity] = useState(0.65);
+  const [opacity, setOpacity] = useState(DEFAULT_OVERLAY_OPACITY);
   const [originalSize, setOriginalSize] = useState<Size | null>(null);
   const [heatmapSize, setHeatmapSize] = useState<Size | null>(null);
   const [heatmapFailed, setHeatmapFailed] = useState(false);
